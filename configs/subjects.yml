@@ -1,13 +1,72 @@
 subjects:
   - name: MeshCNN
-    type: classification
-    entry: "python -m subjects.meshcnn.run --weights /models/meshcnn.pth"
-    input_format: "triangle_mesh"
-    device: "cuda:0"
-  - name: HodgeNet
-    type: segmentation
-    entry: "python -m subjects.hodgenet.run --weights /models/hodgenet.pth"
-    input_format: "triangle_mesh"
-    device: "cuda:0"
-  # ... add the rest to total 8 subjects
+    type: classification_segmentation
+    dataset: [FAUST, ShapeNet]
+    repo_url: https://github.com/ranahanocka/MeshCNN
+    commit: 5bf0b899d48eb204b9b73bc1af381be20f4d7df1 
+    entry: "python examples/classification.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
 
+  - name: HodgeNet
+    type: spectral_classification
+    dataset: [ModelNet40]
+    repo_url: https://github.com/dmsm/HodgeNet
+    commit: 6380f6ca78503817dfa152afd7af094ef5bc0dfe   
+    entry: "python train_classification.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
+
+  - name: MeshSDF
+    type: signed_distance_function
+    dataset: [ShapeNet]
+    repo_url: https://github.com/cvlab-epfl/MeshSDF
+    commit: a579c6610d2cb0d8cff84ec35ad1b424941b5eaa  
+    entry: "python scripts/run_infer.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
+
+  - name: Point2Mesh
+    type: surface_reconstruction
+    dataset: [COSEG]
+    repo_url: https://github.com/ranahanocka/point2mesh
+    commit: 333dba0b2ced97adfbdb62a5383d04bb5628680b
+    entry: "python point2mesh.py --input {mesh} --... "
+    input_format: triangle_mesh
+    device: cuda:0
+
+  - name: MeshWalker
+    type: mesh_sequence_learning
+    dataset: [SMAL]
+    repo_url: https://github.com/AlonLahav/MeshWalker
+    commit: f3b73b1e165ec6598dc10826245df8d9b6c4d8eb
+    entry: "python train.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
+
+  - name: DeepGCNs
+    type: mesh_based_graph_convolution
+    dataset: [ModelNet40]
+    repo_url: https://github.com/lightaime/deep_gcns_torch
+    commit: 4f6681eee2290e217bda941b5536452a7c09decb
+    entry: "python main_classification.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
+
+  - name: GEM
+    type: geometry_encoding_segmentation
+    dataset: [Human3.6M]
+    repo_url: https://github.com/JchenXu/BoundaryAwareGEM
+    commit: 5bbed1008cea1403490e4eb2352c900fc1f76bfd
+    entry: "python train.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
+
+  - name: SpiderCNN
+    type: mesh_classification
+    dataset: [ModelNet10]
+    repo_url: https://github.com/xyf513/SpiderCNN
+    commit: bd5acba4673742258f7c43dcb4c408a838a3db59
+    entry: "python train_cls.py --... "
+    input_format: triangle_mesh
+    device: cuda:0
