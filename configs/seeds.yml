@@ -1,0 +1,6 @@
+seeds:
+  - id: "chair_001"
+    category: "chair"
+    path: "data/seeds/chair/chair_001.obj"
+  # ... populate to 96 items across 12 categories
+

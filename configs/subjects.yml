@@ -1,0 +1,13 @@
+subjects:
+  - name: MeshCNN
+    type: classification
+    entry: "python -m subjects.meshcnn.run --weights /models/meshcnn.pth"
+    input_format: "triangle_mesh"
+    device: "cuda:0"
+  - name: HodgeNet
+    type: segmentation
+    entry: "python -m subjects.hodgenet.run --weights /models/hodgenet.pth"
+    input_format: "triangle_mesh"
+    device: "cuda:0"
+  # ... add the rest to total 8 subjects
+

@@ -1,0 +1,6 @@
+time_budget_sec: 1800
+threads: 4
+mutation_budget: 10000
+log_level: INFO
+retry_on_crash: 0
+
