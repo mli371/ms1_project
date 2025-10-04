@@ -321,6 +321,8 @@ def run_tuple(
         device=device,
         weights_path=weights_path,
         extra=merged_extra,
+        workdir=subject_spec.get("workdir"),
+        pre_cmd=subject_spec.get("pre_cmd"),
     )
 
     tool_fn = GENS[tool_key]
@@ -361,6 +363,12 @@ def run_tuple(
     metrics = normalise_metrics(metrics)
 
     now = dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc).isoformat().replace("+00:00", "Z")
+    weights_sha_map = subject_spec.get("weights_sha256") or {}
+    if not isinstance(weights_sha_map, dict):
+        weights_sha_map = {}
+    weights_key = dataset_entry.get("weights_key") or dataset_name
+    expected_weights_sha = weights_sha_map.get(weights_key)
+
     record = {
         "ts": now,
         "subject": subject_spec.get("name"),
@@ -393,6 +401,7 @@ def run_tuple(
         "data_root": dataset_root,
         "weights_path": weights_path,
         "weights_sha256": sha256_of(weights_path),
+        "weights_sha256_expected": expected_weights_sha,
         "hostname": socket.gethostname(),
         "status": status,
         "eval_mode": dataset_entry.get("eval_mode") or subject_spec.get("eval_mode", "default"),

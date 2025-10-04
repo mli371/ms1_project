@@ -2,7 +2,6 @@
 # Dataset paths template for MS1 project
 # ------------------------------------------------------------
 # Each dataset must be downloaded separately (from official portals or authors).
-# After downloading, manually place them under data/datasets/.
 # NOTE: This file is only a template for paths. 
 #       Do NOT push actual dataset files to GitHub.
 # ============================================================

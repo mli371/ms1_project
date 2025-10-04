@@ -73,6 +73,8 @@ class SubjectRunner:
         device: str,
         weights_path: Optional[str] = None,
         extra: Optional[Dict] = None,
+        workdir: Optional[str] = None,
+        pre_cmd: Optional[str] = None,
     ):
         self.spec = spec
         self.dataset_root = dataset_root or ""
@@ -81,9 +83,10 @@ class SubjectRunner:
         self.device = device or ""
         self.weights_path = weights_path or ""
         self.extra = extra or {}
-        self.workdir = spec.get("path")
+        self.workdir = workdir or spec.get("workdir") or spec.get("path")
+        self.pre_cmd = pre_cmd or spec.get("pre_cmd")
         self.input_format = spec.get("input_format", "triangle_mesh")
-        self.adapter = spec.get("input_adapter", self.input_format)
+        self.adapter = spec.get("adapter") or spec.get("input_adapter", self.input_format)
 
     def _prepare_input(self, mesh_path: str) -> Tuple[str, Optional[str]]:
         """Return path passed to command and temp dir to cleanup."""
@@ -127,11 +130,12 @@ class SubjectRunner:
             "device": self.device,
             "weights": self.weights_path,
             "data_root": self.dataset_root,
+            "weights_path": self.weights_path,
         }
         command_inputs.update({k: str(v) for k, v in self.extra.items()})
         cmd = _safe_format(self.entry_template, command_inputs)
-        if "{mesh}" not in self.entry_template:
-            cmd = f"{cmd} {shlex_quote(mesh_path)}"
+        if self.pre_cmd:
+            cmd = f"{self.pre_cmd} && {cmd}"
         return cmd, command_inputs
 
     def run_once(self, mesh_path: str, timeout_sec: int) -> Dict:
