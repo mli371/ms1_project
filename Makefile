@@ -3,6 +3,7 @@ PY=python
 SUBJECTS=configs/subjects.yml
 SEEDS=configs/seeds.yml
 POLICY=configs/ms1_policy.yml
+DATASETS=configs/datasets.yml
 
 SMOKE_OUT=logs/raw/smoke/run.jsonl
 SMOKE_CSV=logs/agg/smoke_summary.csv
@@ -15,6 +16,7 @@ FULL_CSV=logs/agg/full_summary.csv
 smoke:
 	$(PY) scripts/ms1_runner.py \
 	  --subjects $(SUBJECTS) \
+	  --datasets $(DATASETS) \
 	  --seeds $(SEEDS) \
 	  --policy $(POLICY) \
 	  --tools random,afl,rand_graph,rand_mesh \
@@ -25,6 +27,7 @@ smoke:
 full:
 	$(PY) scripts/ms1_runner.py \
 	  --subjects $(SUBJECTS) \
+	  --datasets $(DATASETS) \
 	  --seeds $(SEEDS) \
 	  --policy $(POLICY) \
 	  --tools random,afl,rand_graph,rand_mesh \
@@ -32,8 +35,7 @@ full:
 	  --aggregate $(FULL_CSV)
 
 aggregate:
-	$(PY) scripts/ms1_runner.py --subjects $(SUBJECTS) --seeds $(SEEDS) --policy $(POLICY) --tools random --out $(SMOKE_OUT) --aggregate $(SMOKE_CSV)
+	$(PY) scripts/ms1_runner.py --subjects $(SUBJECTS) --datasets $(DATASETS) --seeds $(SEEDS) --policy $(POLICY) --tools random --out $(SMOKE_OUT) --aggregate $(SMOKE_CSV)
 
 clean:
 	rm -rf logs/raw/* logs/agg/*
-

@@ -1,72 +1,147 @@
 subjects:
   - name: MeshCNN
-    type: classification_segmentation
-    dataset: [FAUST, ShapeNet]
+    task: classification_segmentation
+    datasets:
+      - name: FAUST
+        data_root: data/datasets/MPI-FAUST
+        entry: segmentation
+        weights_key: faust
+      - name: ShapeNet
+        data_root: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
+        entry: classification
+        weights_key: shapenet
     repo_url: https://github.com/ranahanocka/MeshCNN
-    commit: 5bf0b899d48eb204b9b73bc1af381be20f4d7df1 
-    entry: "python examples/classification.py --... "
+    path: subjects_src/MeshCNN
+    commit: 5bf0b899d48eb204b9b73bc1af381be20f4d7df1
+    weights:
+      faust: subjects_src/MeshCNN/ckpts/faust_seg.pth
+      shapenet: subjects_src/MeshCNN/ckpts/shapenet_cls.pth
+    entry_template:
+      classification: "python examples/classification.py --dataroot {data_root} --pretrained {weights} --device {device} --input {mesh}"
+      segmentation: "python examples/segmentation.py --dataroot {data_root} --pretrained {weights} --device {device} --input {mesh}"
     input_format: triangle_mesh
     device: cuda:0
 
   - name: HodgeNet
-    type: spectral_classification
-    dataset: [ModelNet40]
+    task: spectral_classification
+    datasets:
+      - name: ModelNet40
+        data_root: data/datasets/ModelNet40
+        entry: eval
+        weights_key: modelnet40
     repo_url: https://github.com/dmsm/HodgeNet
-    commit: 6380f6ca78503817dfa152afd7af094ef5bc0dfe   
-    entry: "python train_classification.py --... "
+    path: subjects_src/HodgeNet
+    commit: 6380f6ca78503817dfa152afd7af094ef5bc0dfe
+    weights:
+      modelnet40: subjects_src/HodgeNet/ckpts/modelnet40_cls.pth
+    entry_template:
+      eval: "python train_classification.py --eval --weights {weights} --data {data_root} --device {device} --input {mesh}"
     input_format: triangle_mesh
     device: cuda:0
 
   - name: MeshSDF
-    type: signed_distance_function
-    dataset: [ShapeNet]
+    task: signed_distance_function
+    datasets:
+      - name: ShapeNet
+        data_root: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
+        entry: reconstruct
+        weights_key: svr
     repo_url: https://github.com/cvlab-epfl/MeshSDF
-    commit: a579c6610d2cb0d8cff84ec35ad1b424941b5eaa  
-    entry: "python scripts/run_infer.py --... "
+    path: subjects_src/MeshSDF
+    commit: a579c6610d2cb0d8cff84ec35ad1b424941b5eaa
+    weights:
+      svr: subjects_src/MeshSDF/ckpts/svr_ckpt.pth
+    entry_template:
+      reconstruct: "python reconstruct_svr.py -e {exp_cfg_dir} --checkpoint {weights} --mesh {mesh} --device {device}"
+      metrics: "python metrics_svr.py -e {exp_cfg_dir} --checkpoint {weights} --mesh {mesh} --device {device}"
+    extra:
+      exp_cfg_dir: subjects_src/MeshSDF/experiments/cars_svr
     input_format: triangle_mesh
     device: cuda:0
 
   - name: Point2Mesh
-    type: surface_reconstruction
-    dataset: [COSEG]
+    task: surface_reconstruction
+    datasets:
+      - name: COSEG
+        data_root: data/datasets/CoSeg
+        entry: infer
     repo_url: https://github.com/ranahanocka/point2mesh
+    path: subjects_src/point2mesh
     commit: 333dba0b2ced97adfbdb62a5383d04bb5628680b
-    entry: "python point2mesh.py --input {mesh} --... "
+    entry_template:
+      infer: "python main.py --input_mesh {mesh} --iters 1000 --device {device}"
+      demo: "bash scripts/examples/giraffe.sh"
     input_format: triangle_mesh
     device: cuda:0
 
   - name: MeshWalker
-    type: mesh_sequence_learning
-    dataset: [SMAL]
+    task: mesh_sequence_learning
+    datasets:
+      - name: SMAL
+        data_root: data/datasets/smal_online_V1.0
+        entry: eval
+        weights_key: smal
     repo_url: https://github.com/AlonLahav/MeshWalker
+    path: subjects_src/MeshWalker
     commit: f3b73b1e165ec6598dc10826245df8d9b6c4d8eb
-    entry: "python train.py --... "
+    weights:
+      smal: subjects_src/MeshWalker/pretrained/smal_seq.ckpt
+    entry_template:
+      eval: "python evaluate_segmentation.py coseg chairs --ckpt {weights} --data {data_root} --device {device} --input {mesh}"
     input_format: triangle_mesh
     device: cuda:0
 
   - name: DeepGCNs
-    type: mesh_based_graph_convolution
-    dataset: [ModelNet40]
+    task: mesh_based_graph_convolution
+    datasets:
+      - name: ModelNet40
+        data_root: data/datasets/ModelNet40
+        entry: eval
+        weights_key: modelnet40
     repo_url: https://github.com/lightaime/deep_gcns_torch
+    path: subjects_src/deep_gcns_torch
     commit: 4f6681eee2290e217bda941b5536452a7c09decb
-    entry: "python main_classification.py --... "
-    input_format: triangle_mesh
+    weights:
+      modelnet40: subjects_src/deep_gcns_torch/ckpts/modelnet40_cls.pth
+    entry_template:
+      eval: "python examples/modelnet_cls/main.py --cfg examples/modelnet_cls/config.yaml --pretrained {weights} --data_root {data_root} --device {device} --input {mesh}"
+    input_format: point_cloud
+    input_adapter: point_cloud
     device: cuda:0
 
   - name: GEM
-    type: geometry_encoding_segmentation
-    dataset: [Human3.6M]
+    task: geometry_encoding_segmentation
+    datasets:
+      - name: Human3.6M
+        data_root: data/datasets/Human3.6M
+        entry: eval
+        weights_key: h36m
     repo_url: https://github.com/JchenXu/BoundaryAwareGEM
+    path: subjects_src/BoundaryAwareGEM
     commit: 5bbed1008cea1403490e4eb2352c900fc1f76bfd
-    entry: "python train.py --... "
-    input_format: triangle_mesh
+    weights:
+      h36m: subjects_src/BoundaryAwareGEM/ckpts/h36m_seg.ckpt
+    entry_template:
+      eval: "CUDA_VISIBLE_DEVICES=0 python evaluate_scannet.py --model bagem_scannet --model_path {weights} --data_root {data_root} --with_rgb --input {mesh}"
+    input_format: point_cloud
+    input_adapter: point_cloud
     device: cuda:0
 
   - name: SpiderCNN
-    type: mesh_classification
-    dataset: [ModelNet10]
+    task: mesh_classification
+    datasets:
+      - name: ModelNet10
+        data_root: data/datasets/ModelNet10
+        entry: eval
+        weights_key: modelnet10
     repo_url: https://github.com/xyf513/SpiderCNN
+    path: subjects_src/SpiderCNN
     commit: bd5acba4673742258f7c43dcb4c408a838a3db59
-    entry: "python train_cls.py --... "
-    input_format: triangle_mesh
+    weights:
+      modelnet10: subjects_src/SpiderCNN/ckpts/modelnet10_cls.pth
+    entry_template:
+      eval: "python train.py --eval --weights {weights} --data_root {data_root} --device {device} --input {mesh}"
+    input_format: point_cloud
+    input_adapter: point_cloud
     device: cuda:0
+

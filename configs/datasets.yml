@@ -1,0 +1,9 @@
+datasets:
+  FAUST: data/datasets/MPI-FAUST
+  ShapeNet: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
+  ModelNet40: data/datasets/ModelNet40
+  ModelNet10: data/datasets/ModelNet10
+  COSEG: data/datasets/CoSeg
+  SMAL: data/datasets/smal_online_V1.0
+  Human3.6M: data/datasets/Human3.6M
+
