@@ -1,6 +1,7 @@
 seeds:
   - id: "chair_001"
     category: "chair"
+    dataset: "ShapeNet"
     path: "data/seeds/chair/chair_001.obj"
-  # ... populate to 96 items across 12 categories
+  # TODO: populate 96 entries covering 12 ShapeNetCore categories evenly
 

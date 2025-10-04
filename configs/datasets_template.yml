@@ -1,0 +1,54 @@
+# ============================================================
+# Dataset paths template for MS1 project
+# ------------------------------------------------------------
+# Each dataset must be downloaded separately (from official portals or authors).
+# NOTE: This file is only a template for paths. 
+#       Do NOT push actual dataset files to GitHub.
+# ============================================================
+
+datasets:
+  FAUST: 
+    path: data/datasets/MPI-FAUST
+    info: >
+      Official: https://faust-leaderboard.is.tuebingen.mpg.de/
+      Registration required. Used for MeshCNN (classification/segmentation).
+  
+  ShapeNet: 
+    path: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
+    info: >
+      Official: https://www.kaggle.com/datasets/mitkir/shapenet
+      Used for MeshCNN, MeshSDF.
+
+  ModelNet40: 
+    path: data/datasets/ModelNet40
+    info: >
+      Official: https://www.kaggle.com/datasets/balraj98/modelnet40-princeton-3d-object-dataset
+      Widely used 3D benchmark. Used for HodgeNet, DeepGCNs.
+
+  ModelNet10:
+    path: data/datasets/ModelNet10
+    info: >
+      Official: https://3dshapenets.cs.princeton.edu/
+      Subset of ModelNet. Used for SpiderCNN.
+
+  COSEG: 
+    path: data/datasets/CoSeg
+    info: >
+      Official: https://github.com/wang3702/CoSeg
+      Princeton segmentation benchmark dataset.
+      Used for Point2Mesh (surface reconstruction).
+
+  SMAL: 
+    path: data/datasets/smal_online_V1.0
+    info: >
+      CVPR 2017 SMAL model for animal meshes.
+      Download: http://smpl.is.tue.mpg.de/
+      Includes: smal_CVPR2017.pkl, smal_CVPR2017_data.pkl
+      Used for MeshWalker.
+
+  Human3.6M: 
+    path: /datasets/Human3.6M   # placeholder, must be filled after manual download
+    info: >
+      Official: http://vision.imar.ro/human3.6m/
+      Registration & EULA approval required.
+      Used for GEM.

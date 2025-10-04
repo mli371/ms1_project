@@ -1,0 +1,14 @@
+# Ignore datasets and large binary files
+data/datasets/
+*.zip
+*.tgz
+*.tar
+*.tar.gz
+*.7z
+*.pkl
+*.npz
+*.h5
+*.hdf5
+
+__MACOSX/
+.DS_Store
