@@ -312,6 +312,8 @@ def run_tuple(
     merged_extra = {**subject_extra, **dataset_extra}
 
     device = dataset_entry.get("device", subject_spec.get("device", ""))
+    workdir = dataset_entry.get("workdir") or subject_spec.get("workdir")
+    pre_cmd = dataset_entry.get("pre_cmd") or subject_spec.get("pre_cmd")
 
     runner = SubjectRunner(
         spec=subject_spec,
@@ -321,8 +323,8 @@ def run_tuple(
         device=device,
         weights_path=weights_path,
         extra=merged_extra,
-        workdir=subject_spec.get("workdir"),
-        pre_cmd=subject_spec.get("pre_cmd"),
+        workdir=workdir,
+        pre_cmd=pre_cmd,
     )
 
     tool_fn = GENS[tool_key]

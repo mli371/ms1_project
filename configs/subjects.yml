@@ -3,7 +3,7 @@ subjects:
     task: classification_segmentation
     repo_url: https://github.com/ranahanocka/MeshCNN
     path: subjects_src/MeshCNN
-    workdir: subjects_src/MeshCNN
+    workdir: ms1/workdir/ShapeNet/MeshCNN
     pre_cmd: "source activate meshcnn"
     commit: 5bf0b899d48eb204b9b73bc1af381be20f4d7df1
     weights:
@@ -22,16 +22,18 @@ subjects:
       - name: FAUST
         entry: segmentation
         weights_key: faust
+        workdir: ms1/workdir/FAUST/MeshCNN
       - name: ShapeNet
         entry: classification
         weights_key: shapenet
+        workdir: ms1/workdir/ShapeNet/MeshCNN
 
   - name: HodgeNet
     task: spectral_classification
     repo_url: https://github.com/dmsm/HodgeNet
     path: subjects_src/HodgeNet
-    workdir: subjects_src/HodgeNet
-    pre_cmd: "conda activate HodgeNet"
+    workdir: ms1/workdir/ModelNet40/HodgeNet
+    pre_cmd: "source activate HodgeNet"
     commit: 6380f6ca78503817dfa152afd7af094ef5bc0dfe
     weights:
       modelnet40: "{FILL}/hodgenet_modelnet40_cls.pth"
@@ -48,13 +50,14 @@ subjects:
       - name: ModelNet40
         entry: eval
         weights_key: modelnet40
+        workdir: ms1/workdir/ModelNet40/HodgeNet
 
   - name: MeshSDF
     task: signed_distance_function
     repo_url: https://github.com/cvlab-epfl/MeshSDF
     path: subjects_src/MeshSDF
-    workdir: subjects_src/MeshSDF
-    pre_cmd: "source ~/.conda/envs/meshsdf/bin/activate"
+    workdir: ms1/workdir/ShapeNet/MeshSDF
+    pre_cmd: "source activate meshsdf"
     commit: a579c6610d2cb0d8cff84ec35ad1b424941b5eaa
     weights:
       svr_ckpt: "{FILL}/meshsdf_svr.ckpt"
@@ -74,13 +77,14 @@ subjects:
         weights_key: svr_ckpt
         extra:
           exp_cfg_dir: experiments/cars_svr
+        workdir: ms1/workdir/ShapeNet/MeshSDF
 
   - name: Point2Mesh
     task: surface_reconstruction
     repo_url: https://github.com/ranahanocka/point2mesh
     path: subjects_src/point2mesh
-    workdir: subjects_src/point2mesh
-    pre_cmd: "source activate point2mesh"
+    workdir: ms1/workdir/COSEG/Point2Mesh
+    pre_cmd: "source activate ípoint2mesh"
     commit: 333dba0b2ced97adfbdb62a5383d04bb5628680b
     entry_template:
       infer: "python point2mesh.py --input {mesh} --pointcloud {pointcloud} --output {out_dir}"
@@ -93,13 +97,14 @@ subjects:
         entry: infer
         extra:
           out_dir: results/
+        workdir: ms1/workdir/COSEG/Point2Mesh
 
   - name: MeshWalker
     task: mesh_sequence_learning
     repo_url: https://github.com/AlonLahav/MeshWalker
     path: subjects_src/MeshWalker
-    workdir: subjects_src/MeshWalker
-    pre_cmd: "source ~/.conda/envs/meshwalker/bin/activate"
+    workdir: ms1/workdir/SMAL/MeshWalker
+    pre_cmd: "source activate meshwalker"
     commit: f3b73b1e165ec6598dc10826245df8d9b6c4d8eb
     weights:
       smal_pretrained: "{FILL}/pretrained/smal_seq.ckpt"
@@ -114,13 +119,14 @@ subjects:
       - name: SMAL
         entry: eval
         weights_key: smal_pretrained
+        workdir: ms1/workdir/SMAL/MeshWalker
 
   - name: DeepGCNs
     task: mesh_based_graph_convolution
     repo_url: https://github.com/lightaime/deep_gcns_torch
     path: subjects_src/deep_gcns_torch
-    workdir: subjects_src/deep_gcns_torch/examples/modelnet_cls
-    pre_cmd: "source ~/.conda/envs/deepgcn/bin/activate"
+    workdir: ms1/workdir/ModelNet40/DeepGCNs
+    pre_cmd: "source activate deepgcn"
     commit: 4f6681eee2290e217bda941b5536452a7c09decb
     weights:
       modelnet40: "{FILL}/modelnet40_cls.pth"
@@ -135,13 +141,14 @@ subjects:
       - name: ModelNet40
         entry: eval
         weights_key: modelnet40
+        workdir: ms1/workdir/ModelNet40/DeepGCNs
 
   - name: GEM
     task: geometry_encoding_segmentation
     repo_url: https://github.com/JchenXu/BoundaryAwareGEM
     path: subjects_src/BoundaryAwareGEM
-    workdir: subjects_src/BoundaryAwareGEM
-    pre_cmd: "source ~/.conda/envs/gem-tf1/bin/activate"
+    workdir: ms1/workdir/Human3.6M/GEM
+    pre_cmd: "source activate gem"
     commit: 5bbed1008cea1403490e4eb2352c900fc1f76bfd
     weights:
       scannet: "{FILL}/bagem_scannet.ckpt"
@@ -156,12 +163,13 @@ subjects:
       - name: Human3.6M
         entry: eval
         weights_key: scannet
+        workdir: ms1/workdir/Human3.6M/GEM
 
   - name: SpiderCNN
     task: mesh_classification
     repo_url: https://github.com/xyf513/SpiderCNN
     path: subjects_src/SpiderCNN
-    workdir: subjects_src/SpiderCNN
+    workdir: ms1/workdir/ModelNet10/SpiderCNN
     pre_cmd: "source ~/.conda/envs/spidercnn-tf1/bin/activate"
     commit: bd5acba4673742258f7c43dcb4c408a838a3db59
     weights:
@@ -177,4 +185,4 @@ subjects:
       - name: ModelNet10
         entry: eval
         weights_key: modelnet10
-
+        workdir: ms1/workdir/ModelNet10/SpiderCNN
