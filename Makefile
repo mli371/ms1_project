@@ -39,3 +39,19 @@ aggregate:
 
 clean:
 	rm -rf logs/raw/* logs/agg/*
+
+run-p2m:
+	MS_ROOT=$$(pwd) python -m ms1.scripts.ms1_runner \
+	 --subjects ms1/configs/subjects.yml \
+	 --datasets ms1/configs/datasets.yml \
+	 --policy   ms1/configs/ms1_policy.yml \
+	 --topic point2mesh --max-prompts 1 \
+	 --out ms1/logs/ms1_point2mesh_smoke.jsonl
+
+run-topic:
+	MS_ROOT=$$(pwd) python -m ms1.scripts.ms1_runner \
+	 --subjects ms1/configs/subjects.yml \
+	 --datasets ms1/configs/datasets.yml \
+	 --policy   ms1/configs/ms1_policy.yml \
+	 --topic $${TOPIC} --max-prompts 1 \
+	 --out ms1/logs/ms1_$${TOPIC}_smoke.jsonl

@@ -30,6 +30,7 @@ Notes:
 - SpiderCNN disabled; requires TF1.3 + CUDA 8 + Python 2.7 and `modelnet40_ply_hdf5_2048` under `ModelNet40`.
 
 ## Smoke Test Results
+> Recommended entry: `MS_ROOT=$(pwd) python -m ms1.scripts.ms1_runner ...` (see README). Script-style invocation now emits a warning but still works.
 | Subject | Command (condensed) | Result | Log | Next Action |
 |---|---|---|---|---|
 | MeshCNN | `python train.py --dataroot datasets/shrec_16 --name ms1_smoke --niter 1 --niter_decay 0 --batch_size 2 --gpu_ids -1 --num_threads 0` | ✅ Runs; loss printed, model saved | `logs/meshcnn_smoke.log` | Restore GPU config when running full MS1; current smoke uses CPU + tiny dataset slice. |
