@@ -52,6 +52,12 @@ def canonical_key(value: Optional[str]) -> str:
     return "".join(ch for ch in value.lower() if ch.isalnum())
 
 
+def iso_from_timestamp(ts: Optional[float]) -> Optional[str]:
+    if ts is None:
+        return None
+    return dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 def list_dataset_entries(subject: Dict) -> List[Dict]:
     raw = subject.get("datasets")
     if raw is None:
@@ -194,17 +200,29 @@ def select_dataset(subject: Dict, seed: Dict) -> Dict:
 
 
 def select_entry_template(subject: Dict, dataset_entry: Dict) -> Tuple[str, str]:
-    templates = subject.get("entry_template", {}) or {}
-    if not isinstance(templates, dict) or not templates:
-        raise ValueError(f"Subject {subject.get('name')} missing entry_template")
-    preferred = dataset_entry.get("entry") or subject.get("default_entry")
-    if preferred and preferred in templates:
-        return preferred, templates[preferred]
-    for key in ENTRY_PRIORITY:
-        if key in templates:
-            return key, templates[key]
-    key, value = next(iter(templates.items()))
-    return key, value
+    templates = subject.get("entry_template")
+    entry_value = subject.get("entry")
+
+    if isinstance(templates, dict) and templates:
+        preferred = dataset_entry.get("entry") or subject.get("default_entry")
+        if preferred and preferred in templates:
+            return preferred, templates[preferred]
+        for key in ENTRY_PRIORITY:
+            if key in templates:
+                return key, templates[key]
+        key, value = next(iter(templates.items()))
+        return key, value
+
+    if isinstance(templates, str) and templates.strip():
+        return "default", templates
+
+    if dataset_entry.get("entry"):
+        return dataset_entry.get("entry_name", "dataset"), dataset_entry["entry"]
+
+    if entry_value:
+        return "default", entry_value
+
+    raise ValueError(f"Subject {subject.get('name')} missing entry configuration")
 
 
 def select_weights(subject: Dict, dataset_entry: Dict) -> Optional[str]:
@@ -312,8 +330,25 @@ def run_tuple(
     merged_extra = {**subject_extra, **dataset_extra}
 
     device = dataset_entry.get("device", subject_spec.get("device", ""))
-    workdir = dataset_entry.get("workdir") or subject_spec.get("workdir")
-    pre_cmd = dataset_entry.get("pre_cmd") or subject_spec.get("pre_cmd")
+
+    subject_workdir = subject_spec.get("workdir")
+    dataset_workdir = dataset_entry.get("workdir")
+    workdir = dataset_workdir or subject_workdir
+    if dataset_workdir and subject_workdir and dataset_workdir != subject_workdir:
+        base = os.path.basename(subject_workdir.rstrip(os.sep)) if subject_workdir else ""
+        if base:
+            workdir = os.path.join(dataset_workdir, base)
+
+    dataset_pre = dataset_entry.get("pre_cmd")
+    subject_pre = subject_spec.get("pre_cmd")
+    if dataset_pre and subject_pre:
+        pre_cmd = f"{dataset_pre}\n{subject_pre}"
+    else:
+        pre_cmd = dataset_pre or subject_pre
+
+    auto_append = dataset_entry.get("auto_append_mesh")
+    if auto_append is None:
+        auto_append = subject_spec.get("auto_append_mesh", True)
 
     runner = SubjectRunner(
         spec=subject_spec,
@@ -325,6 +360,8 @@ def run_tuple(
         extra=merged_extra,
         workdir=workdir,
         pre_cmd=pre_cmd,
+        dataset_name=dataset_name,
+        auto_append_mesh=auto_append,
     )
 
     tool_fn = GENS[tool_key]
@@ -376,6 +413,7 @@ def run_tuple(
         "subject": subject_spec.get("name"),
         "task": subject_spec.get("task"),
         "dataset": dataset_name,
+        "dataset_key": dataset_name,
         "tool": tool_key,
         "seed_id": seed.get("id"),
         "seed_category": seed.get("category"),
@@ -407,6 +445,12 @@ def run_tuple(
         "hostname": socket.gethostname(),
         "status": status,
         "eval_mode": dataset_entry.get("eval_mode") or subject_spec.get("eval_mode", "default"),
+        "workdir": workdir,
+        "pre_cmd": pre_cmd,
+        "entry": runner.last_command,
+        "start_time": None,
+        "end_time": None,
+        "exit_code": None,
     }
 
     if runner.last_command:
@@ -421,21 +465,129 @@ def run_tuple(
     return record
 
 
+def run_direct_subject(
+    subject_spec: Dict,
+    dataset_entry: Dict,
+    policy: Dict,
+    datasets_map: Dict[str, Any],
+    out_path: str,
+) -> Dict:
+    dataset_name = dataset_entry.get("name") or dataset_entry.get("key") or "unknown"
+    dataset_root = resolve_dataset_root(dataset_entry, datasets_map)
+    entry_name, entry_template = select_entry_template(subject_spec, dataset_entry)
+    weights_path = select_weights(subject_spec, dataset_entry)
+
+    subject_extra = subject_spec.get("extra") or {}
+    dataset_extra = dataset_entry.get("extra") or {}
+    merged_extra = {**subject_extra, **dataset_extra}
+
+    device = dataset_entry.get("device", subject_spec.get("device", ""))
+
+    subject_workdir = subject_spec.get("workdir")
+    dataset_workdir = dataset_entry.get("workdir")
+    workdir = dataset_workdir or subject_workdir
+    if dataset_workdir and subject_workdir and dataset_workdir != subject_workdir:
+        base = os.path.basename(subject_workdir.rstrip(os.sep)) if subject_workdir else ""
+        if base:
+            workdir = os.path.join(dataset_workdir, base)
+
+    dataset_pre = dataset_entry.get("pre_cmd")
+    subject_pre = subject_spec.get("pre_cmd")
+    if dataset_pre and subject_pre:
+        pre_cmd = f"{dataset_pre}\n{subject_pre}"
+    else:
+        pre_cmd = dataset_pre or subject_pre
+
+    auto_append = dataset_entry.get("auto_append_mesh")
+    if auto_append is None:
+        auto_append = subject_spec.get("auto_append_mesh", True)
+
+    runner = SubjectRunner(
+        spec=subject_spec,
+        dataset_root=dataset_root,
+        entry_name=entry_name,
+        entry_template=entry_template,
+        device=device,
+        weights_path=weights_path,
+        extra=merged_extra,
+        workdir=workdir,
+        pre_cmd=pre_cmd,
+        dataset_name=dataset_name,
+        auto_append_mesh=auto_append,
+    )
+
+    timeout = int(policy["time_budget_sec"])
+    mesh_reference = dataset_root or ""
+    result = runner.run_once(mesh_path=mesh_reference, timeout_sec=timeout)
+
+    log_dir = Path("ms1/logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"{subject_spec.get('name','subject').lower()}_smoke.log"
+    with open(log_path, "a") as log_file:
+        log_file.write(f"=== {dt.datetime.utcnow().isoformat()}Z ===\n")
+        log_file.write(f"Command: {result.get('command')}\n")
+        stdout = result.get("stdout") or ""
+        stderr = result.get("stderr") or ""
+        if stdout:
+            log_file.write(stdout)
+            if not stdout.endswith("\n"):
+                log_file.write("\n")
+        if stderr:
+            log_file.write("[stderr]\n")
+            log_file.write(stderr)
+            if not stderr.endswith("\n"):
+                log_file.write("\n")
+        log_file.write(f"Exit code: {result.get('exit_code')}\n\n")
+
+    record = {
+        "ts": dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "subject": subject_spec.get("name"),
+        "task": subject_spec.get("task"),
+        "dataset": dataset_name,
+        "dataset_key": dataset_name,
+        "tool": "direct",
+        "status": "ok" if result.get("exit_code") == 0 else "error",
+        "command": result.get("command"),
+        "command_inputs": result.get("inputs"),
+        "stdout": result.get("stdout"),
+        "stderr": result.get("stderr"),
+        "exit_code": result.get("exit_code"),
+        "start_time": iso_from_timestamp(result.get("start_time")),
+        "end_time": iso_from_timestamp(result.get("end_time")),
+        "time_sec": result.get("time_sec"),
+        "device": device,
+        "workdir": workdir,
+        "pre_cmd": pre_cmd,
+        "entry": runner.last_command,
+        "data_root": dataset_root,
+        "weights_path": weights_path,
+        "weights_sha256": sha256_of(weights_path),
+        "subject_commit": subject_spec.get("commit"),
+        "subject_repo": subject_spec.get("repo_url"),
+        "subject_path": subject_spec.get("path"),
+        "log_path": str(log_path),
+    }
+
+    write_jsonl(out_path, record)
+    return record
+
+
 def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--subjects", required=True)
     ap.add_argument("--datasets", required=True)
-    ap.add_argument("--seeds", required=True)
+    ap.add_argument("--seeds")
     ap.add_argument("--policy", required=True)
     ap.add_argument(
         "--tools",
-        required=True,
         help="Comma-separated: random,afl,rand_graph,rand_mesh",
     )
     ap.add_argument("--out", required=True, help="JSONL output path")
     ap.add_argument("--aggregate", help="CSV output path for aggregation")
     ap.add_argument("--time-override", type=int, help="Override time_budget_sec for smoke tests")
     ap.add_argument("--resume", action="store_true", help="Skip completed tuples found in JSONL")
+    ap.add_argument("--topic", help="Run a direct subject command by name")
+    ap.add_argument("--max-prompts", type=int, help="Limit number of dataset entries to execute")
     return ap.parse_args()
 
 
@@ -443,7 +595,7 @@ def main():
     args = parse_args()
     subjects_cfg = load_yaml(args.subjects)
     datasets_cfg = load_yaml(args.datasets)
-    seeds_cfg = load_yaml(args.seeds)
+    seeds_cfg = load_yaml(args.seeds) if args.seeds else {"seeds": []}
     policy = load_yaml(args.policy)
 
     if args.time_override is not None:
@@ -454,6 +606,27 @@ def main():
     subjects: List[Dict] = subjects_cfg.get("subjects", [])
     seeds: List[Dict] = seeds_cfg.get("seeds", [])
     datasets_map: Dict[str, Any] = datasets_cfg.get("datasets", {})
+
+    if args.topic:
+        ensure_parent(args.out)
+        topic_key = canonical_key(args.topic)
+        matches = [s for s in subjects if canonical_key(s.get("name")) == topic_key]
+        if not matches:
+            raise SystemExit(f"No subject matching topic '{args.topic}'")
+        max_prompts = args.max_prompts or 1
+        for subject in matches:
+            entries = list_dataset_entries(subject) or [{}]
+            for idx, entry in enumerate(entries):
+                if max_prompts is not None and idx >= max_prompts:
+                    break
+                run_direct_subject(subject, entry, policy, datasets_map, args.out)
+        return
+
+    if not args.seeds:
+        raise SystemExit("--seeds must be provided when --topic is not used")
+
+    if not args.tools:
+        raise SystemExit("--tools must be provided when --topic is not used")
 
     tools = [t.strip() for t in args.tools.split(",") if t.strip()]
     for tool in tools:

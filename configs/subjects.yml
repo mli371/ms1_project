@@ -1,188 +1,135 @@
 subjects:
   - name: MeshCNN
+    enabled: true
     task: classification_segmentation
     repo_url: https://github.com/ranahanocka/MeshCNN
     path: subjects_src/MeshCNN
-    workdir: ms1/workdir/ShapeNet/MeshCNN
-    pre_cmd: "source activate meshcnn"
+    workdir: workdir/ShapeNet/MeshCNN
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate meshcnn"
     commit: 5bf0b899d48eb204b9b73bc1af381be20f4d7df1
-    weights:
-      faust: "{FILL}/meshcnn_faust_seg.pth"
-      shapenet: "{FILL}/meshcnn_shapenet_cls.pth"
-    weights_sha256:
-      faust: "{FILL_SHA256}"
-      shapenet: "{FILL_SHA256}"
     entry_template:
-      classification: "bash scripts/shrec/test.sh"
-      segmentation: "bash scripts/human_seg/test.sh"
-    adapter: none
-    input_format: triangle_mesh
-    device: cuda:0
+      classification: "python train.py --dataroot ${DATASET:ShapeNet} --name ms1_meshcnn_cls --niter 1 --niter_decay 0 --save_epoch_freq 1 --batch_size 2"
+      segmentation: "python train.py --dataroot ${DATASET:FAUST} --name ms1_meshcnn_seg --niter 1 --niter_decay 0 --save_epoch_freq 1 --batch_size 2"
+    weights:
+      classification: workdir/ShapeNet/MeshCNN/checkpoints/latest_net.pth
+      segmentation: workdir/FAUST/MeshCNN/checkpoints/latest_net.pth
     datasets:
-      - name: FAUST
-        entry: segmentation
-        weights_key: faust
-        workdir: ms1/workdir/FAUST/MeshCNN
       - name: ShapeNet
         entry: classification
-        weights_key: shapenet
-        workdir: ms1/workdir/ShapeNet/MeshCNN
+        workdir: workdir/ShapeNet/MeshCNN
+      - name: FAUST
+        entry: segmentation
+        workdir: workdir/FAUST/MeshCNN
 
   - name: HodgeNet
+    enabled: true
     task: spectral_classification
     repo_url: https://github.com/dmsm/HodgeNet
     path: subjects_src/HodgeNet
-    workdir: ms1/workdir/ModelNet40/HodgeNet
-    pre_cmd: "source activate HodgeNet"
+    workdir: workdir/ModelNet40/HodgeNet
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate HodgeNet"
     commit: 6380f6ca78503817dfa152afd7af094ef5bc0dfe
-    weights:
-      modelnet40: "{FILL}/hodgenet_modelnet40_cls.pth"
-    weights_sha256:
-      modelnet40: "{FILL_SHA256}"
     entry_template:
-      eval: "python train_classification.py --eval --weights {weights} --data {data_root} --device {device} --out {out_dir}"
-    extra:
-      out_dir: outputs/hodgenet
-    adapter: none
-    input_format: triangle_mesh
-    device: cuda:0
+      eval: "python train_classification.py --out runs/ms1_eval --n_epochs 100 --bs 16 --data ${DATASET:ModelNet40}"
     datasets:
       - name: ModelNet40
         entry: eval
-        weights_key: modelnet40
-        workdir: ms1/workdir/ModelNet40/HodgeNet
+        workdir: workdir/ModelNet40/HodgeNet
 
   - name: MeshSDF
+    enabled: true
     task: signed_distance_function
     repo_url: https://github.com/cvlab-epfl/MeshSDF
     path: subjects_src/MeshSDF
-    workdir: ms1/workdir/ShapeNet/MeshSDF
-    pre_cmd: "source activate meshsdf"
+    workdir: workdir/ShapeNet/MeshSDF
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate meshsdf"
     commit: a579c6610d2cb0d8cff84ec35ad1b424941b5eaa
-    weights:
-      svr_ckpt: "{FILL}/meshsdf_svr.ckpt"
-    weights_sha256:
-      svr_ckpt: "{FILL_SHA256}"
     entry_template:
-      reconstruct: "python reconstruct_svr.py -e experiments/cars_svr/ --checkpoint {weights}"
-      metrics: "python metrics_svr.py -e experiments/cars_svr/ --checkpoint {weights}"
-    adapter: none
-    input_format: triangle_mesh
-    device: cuda:0
-    extra:
-      exp_cfg_dir: experiments/cars_svr
+      svr: "python train_svr.py -e experiments/cars_svr --max_epoch 1 --batch_size 2 --data_root ${DATASET:ShapeNet}"
     datasets:
       - name: ShapeNet
-        entry: reconstruct
-        weights_key: svr_ckpt
-        extra:
-          exp_cfg_dir: experiments/cars_svr
-        workdir: ms1/workdir/ShapeNet/MeshSDF
+        entry: svr
+        workdir: workdir/ShapeNet/MeshSDF
 
   - name: Point2Mesh
+    enabled: true
+    env: point2mesh
     task: surface_reconstruction
     repo_url: https://github.com/ranahanocka/point2mesh
     path: subjects_src/point2mesh
     workdir: ms1/workdir/COSEG/Point2Mesh
-    pre_cmd: "source activate ípoint2mesh"
+    pre_cmd: |
+      export CUDA_VISIBLE_DEVICES=""
+      export LD_LIBRARY_PATH=$(python -c "import os,torch;print(os.path.join(os.path.dirname(torch.__file__),'lib'))"):$LD_LIBRARY_PATH
+      export MANIFOLD_DIR=$MS_ROOT/code/Manifold/build
+      source ~/miniconda3/etc/profile.d/conda.sh && conda activate point2mesh
     commit: 333dba0b2ced97adfbdb62a5383d04bb5628680b
-    entry_template:
-      infer: "python point2mesh.py --input {mesh} --pointcloud {pointcloud} --output {out_dir}"
-      demo: "bash scripts/examples/giraffe.sh"
-    adapter: none
-    input_format: triangle_mesh
-    device: cuda:0
+    auto_append_mesh: false
+    entry: "python main.py --name ms1_smoke_p2m_cpu --input ./data/examples/giraffe.ply --iters 10 --save_freq 10 --gpu_ids -1"
     datasets:
       - name: COSEG
-        entry: infer
-        extra:
-          out_dir: results/
         workdir: ms1/workdir/COSEG/Point2Mesh
 
   - name: MeshWalker
+    enabled: true
     task: mesh_sequence_learning
     repo_url: https://github.com/AlonLahav/MeshWalker
     path: subjects_src/MeshWalker
-    workdir: ms1/workdir/SMAL/MeshWalker
-    pre_cmd: "source activate meshwalker"
+    workdir: workdir/COSEG/MeshWalker
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate meshwalker"
     commit: f3b73b1e165ec6598dc10826245df8d9b6c4d8eb
-    weights:
-      smal_pretrained: "{FILL}/pretrained/smal_seq.ckpt"
-    weights_sha256:
-      smal_pretrained: "{FILL_SHA256}"
     entry_template:
-      eval: "python evaluate_segmentation.py smal none {weights}"
-    adapter: none
-    input_format: triangle_mesh
-    device: cuda:0
+      eval: "python train_val.py coseg chairs --epochs 1 --data_root ${DATASET:COSEG}"
     datasets:
-      - name: SMAL
+      - name: COSEG
         entry: eval
-        weights_key: smal_pretrained
-        workdir: ms1/workdir/SMAL/MeshWalker
+        workdir: workdir/COSEG/MeshWalker
 
   - name: DeepGCNs
+    enabled: true
     task: mesh_based_graph_convolution
     repo_url: https://github.com/lightaime/deep_gcns_torch
     path: subjects_src/deep_gcns_torch
-    workdir: ms1/workdir/ModelNet40/DeepGCNs
-    pre_cmd: "source activate deepgcn"
+    workdir: workdir/ModelNet40/DeepGCNs
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate deepgcn"
     commit: 4f6681eee2290e217bda941b5536452a7c09decb
-    weights:
-      modelnet40: "{FILL}/modelnet40_cls.pth"
-    weights_sha256:
-      modelnet40: "{FILL_SHA256}"
     entry_template:
-      eval: "python main.py --cfg configs/modelnet_cls/deepgcn.yaml --dataset ModelNet40 --eval --resume {weights}"
+      eval: "python examples/modelnet_cls/main.py --cfg examples/modelnet_cls/config.yaml --epochs 1 --batch_size 8 --data_root ${DATASET:ModelNet40}"
     adapter: mesh_to_point
-    input_format: triangle_mesh
-    device: cuda:0
     datasets:
       - name: ModelNet40
         entry: eval
-        weights_key: modelnet40
-        workdir: ms1/workdir/ModelNet40/DeepGCNs
+        workdir: workdir/ModelNet40/DeepGCNs
 
   - name: GEM
+    enabled: false
     task: geometry_encoding_segmentation
     repo_url: https://github.com/JchenXu/BoundaryAwareGEM
     path: subjects_src/BoundaryAwareGEM
-    workdir: ms1/workdir/Human3.6M/GEM
-    pre_cmd: "source activate gem"
+    workdir: workdir/Human3.6M/GEM
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate gem"
     commit: 5bbed1008cea1403490e4eb2352c900fc1f76bfd
-    weights:
-      scannet: "{FILL}/bagem_scannet.ckpt"
-    weights_sha256:
-      scannet: "{FILL_SHA256}"
     entry_template:
-      eval: "CUDA_VISIBLE_DEVICES=0 python evaluate_scannet.py --model bagem_scannet --batch_size 8 --model_path {weights} --with_rgb"
-    adapter: mesh_to_point
-    input_format: point_cloud
-    device: cuda:0
+      eval: "CUDA_VISIBLE_DEVICES=0 python evaluate_scannet.py --model bagem_scannet --batch_size 2 --model_path checkpoints/bagem_scannet.ckpt --with_rgb --data_root ${DATASET:Human3.6M}"
     datasets:
       - name: Human3.6M
         entry: eval
-        weights_key: scannet
-        workdir: ms1/workdir/Human3.6M/GEM
+        workdir: workdir/Human3.6M/GEM
+        note: "Requires Human3.6M dataset download and license; enable after data is available."
 
   - name: SpiderCNN
+    enabled: false
     task: mesh_classification
     repo_url: https://github.com/xyf513/SpiderCNN
     path: subjects_src/SpiderCNN
-    workdir: ms1/workdir/ModelNet10/SpiderCNN
-    pre_cmd: "source ~/.conda/envs/spidercnn-tf1/bin/activate"
+    workdir: workdir/ModelNet10/SpiderCNN
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate spidercnn-tf1"
     commit: bd5acba4673742258f7c43dcb4c408a838a3db59
-    weights:
-      modelnet10: "{FILL}/modelnet10_cls.ckpt"
-    weights_sha256:
-      modelnet10: "{FILL_SHA256}"
+    notes: "Requires TensorFlow 1.3, CUDA 8, Python 2.7, and modelnet40_ply_hdf5_2048 dataset."
     entry_template:
-      eval: "python train.py --eval --weights {weights} --data_root {data_root}"
+      eval: "python train.py --eval --data_root ${DATASET:ModelNet10}"
     adapter: mesh_to_point
-    input_format: point_cloud
-    device: cuda:0
     datasets:
       - name: ModelNet10
         entry: eval
-        weights_key: modelnet10
-        workdir: ms1/workdir/ModelNet10/SpiderCNN
+        workdir: workdir/ModelNet10/SpiderCNN

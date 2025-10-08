@@ -1,9 +1,15 @@
 datasets:
+  # MeshCNN (classification/segmentation)
   FAUST: data/datasets/MPI-FAUST
+  # MeshCNN, MeshSDF
   ShapeNet: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
+  # HodgeNet, DeepGCNs
   ModelNet40: data/datasets/ModelNet40
+  # SpiderCNN (needs modelnet40_ply_hdf5_2048 inside)
   ModelNet10: data/datasets/ModelNet10
+  # Point2Mesh, MeshWalker
   COSEG: data/datasets/CoSeg
+  # MeshWalker
   SMAL: data/datasets/smal_online_V1.0
+  # GEM (requires license)
   Human3.6M: data/datasets/Human3.6M
-

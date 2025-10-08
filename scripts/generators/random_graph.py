@@ -6,7 +6,10 @@ import tempfile
 import time
 from typing import Dict, Tuple
 
-from ..subject_api import SubjectRunner
+try:
+    from ..subject_api import SubjectRunner
+except ImportError:  # pragma: no cover
+    from subject_api import SubjectRunner  # type: ignore
 
 _LOG = logging.getLogger(__name__)
 
@@ -96,4 +99,3 @@ def run(
         "tool_args": f"--threads={threads} --budget={mutation_budget}",
     }
     return metrics, meta
-
