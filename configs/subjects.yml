@@ -53,22 +53,18 @@ subjects:
 
   - name: Point2Mesh
     enabled: true
-    env: point2mesh
     task: surface_reconstruction
     repo_url: https://github.com/ranahanocka/point2mesh
     path: subjects_src/point2mesh
-    workdir: ms1/workdir/COSEG/Point2Mesh
-    pre_cmd: |
-      export CUDA_VISIBLE_DEVICES=""
-      export LD_LIBRARY_PATH=$(python -c "import os,torch;print(os.path.join(os.path.dirname(torch.__file__),'lib'))"):$LD_LIBRARY_PATH
-      export MANIFOLD_DIR=$MS_ROOT/code/Manifold/build
-      source ~/miniconda3/etc/profile.d/conda.sh && conda activate point2mesh
+    workdir: workdir/COSEG/Point2Mesh
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate point2mesh && export CUDA_VISIBLE_DEVICES="
     commit: 333dba0b2ced97adfbdb62a5383d04bb5628680b
     auto_append_mesh: false
-    entry: "python main.py --name ms1_smoke_p2m_cpu --input ./data/examples/giraffe.ply --iters 10 --save_freq 10 --gpu_ids -1"
+    entry_template:
+      smoke: "python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu"
     datasets:
       - name: COSEG
-        workdir: ms1/workdir/COSEG/Point2Mesh
+        workdir: workdir/COSEG/Point2Mesh
 
   - name: MeshWalker
     enabled: true
