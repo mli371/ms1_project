@@ -45,6 +45,7 @@ Notes:
 - HodgeNet: preprocess ModelNet40 to produce `labels.txt` (per repo instructions) or update command to point at processed data.
 - MeshSDF: revisit experiment specs and argument expectations; run provided preprocessing to create splits and JSON configs.
 - Point2Mesh: install PyTorch3D (matching CUDA/PyTorch build) or use Docker image; verify Manifold binaries path in `options.py`.
+- Point2Mesh → Switch to COSEG once processed .npz/.ply ready; replace `<REPLACE_WITH_SAMPLE>.ply` with an actual file under `${DATASET:COSEG}/processed/points/`.
 - MeshWalker: pin `protobuf<=3.20.x` (or set `PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`) in `meshwalker` environment.
 - DeepGCNs: install `torch_cluster` (matching PyTorch/CUDA) and confirm ModelNet40 pre-processing.
 - SpiderCNN: provision TF1.3/CUDA8 environment or container when ready.
@@ -52,7 +53,8 @@ Notes:
 
 ### Point2Mesh (CPU) smoke
 - env: point2mesh (torch 2.3.0+cpu / torchvision 0.18.0+cpu / pytorch3d 0.7.6)
-- cmd: `python main.py --name ms1_smoke_p2m_cpu --input ./data/examples/giraffe.ply --iters 10 --save_freq 10 --gpu_ids -1`
+- cmd: `python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu`
 - device: CPU, workdir `ms1/workdir/COSEG/Point2Mesh`
-- duration ≈1.84s, exit code 2 (script rejects `--name/--iters` flags)
+- duration ≈30.2s, exit code 0 — outputs saved to `ms1/workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu/`, stdout/stderr captured in `ms1/logs/point2mesh_smoke.log`, JSON record in `ms1/logs/ms1_point2mesh_smoke.jsonl`
+- Headline loss: ~0.09 across 10 iterations (toy giraffe example)
 - TODO: swap in COSEG-derived input + proper CLI flags once migrating off the toy example.

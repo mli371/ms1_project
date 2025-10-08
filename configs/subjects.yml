@@ -62,6 +62,11 @@ subjects:
     auto_append_mesh: false
     entry_template:
       smoke: "python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu"
+      coseg_demo: >
+        python main.py
+        --input-pc ${DATASET:COSEG}/processed/points/<REPLACE_WITH_SAMPLE>.ply
+        --iterations 200
+        --save-path ../../workdir/COSEG/Point2Mesh/run_${ISO_TS}
     datasets:
       - name: COSEG
         workdir: workdir/COSEG/Point2Mesh
