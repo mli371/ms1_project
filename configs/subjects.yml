@@ -57,18 +57,41 @@ subjects:
     repo_url: https://github.com/ranahanocka/point2mesh
     path: subjects_src/point2mesh
     workdir: workdir/COSEG/Point2Mesh
-    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate point2mesh && export CUDA_VISIBLE_DEVICES="
+    pre_cmd: "source ~/miniconda3/etc/profile.d/conda.sh && conda activate point2mesh"
     commit: 333dba0b2ced97adfbdb62a5383d04bb5628680b
     auto_append_mesh: false
     entry_template:
       smoke: "python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu"
-      coseg_demo: >
-        python main.py
-        --input-pc ${DATASET:COSEG}/processed/points/<REPLACE_WITH_SAMPLE>.ply
-        --iterations 200
-        --save-path ../../workdir/COSEG/Point2Mesh/run_${ISO_TS}
+      coseg_chair: |
+        CUDA_VISIBLE_DEVICES="" python main.py \
+          --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/sample.ply \
+          --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/initmesh.obj \
+          --iterations 160 \
+          --export-interval 10 \
+          --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_chair/
+      coseg_vase: |
+        CUDA_VISIBLE_DEVICES="" python main.py \
+          --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/vases/sample.ply \
+          --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/vases/initmesh.obj \
+          --iterations 160 \
+          --export-interval 10 \
+          --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_vase/
+      coseg_tele: |
+        CUDA_VISIBLE_DEVICES="" python main.py \
+          --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/tele_aliens/sample.ply \
+          --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/tele_aliens/initmesh.obj \
+          --iterations 160 \
+          --export-interval 10 \
+          --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_tele/
     datasets:
       - name: COSEG
+        entry: coseg_chair
+        workdir: workdir/COSEG/Point2Mesh
+      - name: COSEG
+        entry: coseg_vase
+        workdir: workdir/COSEG/Point2Mesh
+      - name: COSEG
+        entry: coseg_tele
         workdir: workdir/COSEG/Point2Mesh
 
   - name: MeshWalker

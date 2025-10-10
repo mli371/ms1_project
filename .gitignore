@@ -12,3 +12,12 @@ data/datasets/
 
 __MACOSX/
 .DS_Store
+
+!data/datasets/COSEG/README.md
+workdir/**
+ms1/workdir/**
+ms1/logs/**
+logs/**
+loss_summary.txt
+__pycache__/
+*.pyc
