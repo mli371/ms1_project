@@ -63,3 +63,10 @@ Notes:
   - env: point2mesh (torch 2.3.0+cpu / torchvision 0.18.0+cpu / pytorch3d 0.7.6)
   - cmd: `python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu`
   - duration ≈30.2 s, exit code 0 — outputs in `ms1/workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu/`; log `ms1/logs/point2mesh_smoke.log`, JSON `ms1/logs/ms1_point2mesh_smoke.jsonl`.
+
+### Point2Mesh (CPU baseline)
+- chair: min=0.1058, final=0.1064, log: workdir/COSEG/Point2Mesh/ms1_coseg_chair_cpu_160/stdout.log
+- vase:  min=-0.1075,  final=-0.1055,  log: workdir/COSEG/Point2Mesh/ms1_coseg_vase_cpu_160/stdout.log
+- tele:  min=0.0191,  final=0.0296,  log: workdir/COSEG/Point2Mesh/ms1_coseg_tele_cpu_160/stdout.log
+- notes: CPU-only run (torch cpu). Chair uses normalized PLY + ICP-aligned initmesh; vase/tele use default samples.
+- date: 2025-10-12
