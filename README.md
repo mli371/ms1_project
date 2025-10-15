@@ -1,24 +1,41 @@
 MS1 — Run 8 Subjects with Baseline Generators
 
-Overview
-- Orchestrates (subject × tool × seed) runs with strict budgets.
-- Baseline tools: random, afl, rand_graph, rand_mesh.
-- Emits JSONL per-run records and aggregated CSV/Markdown.
+## Overview
+- Orchestrates subject × tool × seed runs with strict budgets via `ms1.scripts.ms1_runner`.
+- Currently prioritises Point2Mesh COSEG baselines (CPU + GPU) while keeping other subjects smoke-test ready.
+- Emits JSONL per-run records plus aggregated CSV/Markdown for downstream analysis.
 
-Quick Start (smoke)
-- Prepare configs in `configs/` (fill `subjects.yml`, `datasets.yml`, `seeds.yml`) and seeds under `data/seeds/`.
-- Run (from repo root):
-  ```bash
-  MS_ROOT=$(pwd) python -m ms1.scripts.ms1_runner \
-    --subjects ms1/configs/subjects.yml \
-    --datasets ms1/configs/datasets.yml \
-    --policy   ms1/configs/ms1_policy.yml \
-    --topic point2mesh --max-prompts 1 \
-    --out ms1/logs/ms1_point2mesh_smoke.jsonl
-  ```
-  *(If you insist on `python ms1/scripts/ms1_runner.py ...`, the runner will inject the repo root into `PYTHONPATH` and emit a one-time warning. Alternatively, use `python tools/run_ms1.py --topic point2mesh --max-prompts 1`.)*
+## Quick Start
+1. **Prepare configs**  
+   - Update `configs/subjects.yml`, `configs/datasets.yml`, and (if needed) `configs/seeds.yml`.  
+   - Place dataset links under `data/datasets/` and seed files in `data/seeds/`.
+2. **Set environments**  
+   - CPU baseline: `conda env create -f subjects_src/point2mesh/envs/point2mesh-cpu.lock.yml`.  
+   - GPU baseline: `conda env create -f subjects_src/point2mesh/envs/point2mesh-gpu.lock.yml` (requires CUDA 12.1-capable driver).
+3. **Launch a smoke run** (from repo root):
+   ```bash
+   MS_ROOT=$(pwd) python -m ms1.scripts.ms1_runner \
+     --subjects ms1/configs/subjects.yml \
+     --datasets ms1/configs/datasets.yml \
+     --policy   ms1/configs/ms1_policy.yml \
+     --topic point2mesh --max-prompts 1 \
+     --out ms1/logs/ms1_point2mesh_smoke.jsonl
+   ```
+   *(Alternatives: `python ms1/scripts/ms1_runner.py ...` or `python tools/run_ms1.py --topic point2mesh --max-prompts 1`.)*
 
-Notes
-- Subject entry templates in `subjects.yml` accept placeholders such as `{mesh}`, `{weights}`, `{data_root}`, `{device}`; dataset-specific options (e.g., `entry`, `data_root`, `weights_key`) can be provided under each `datasets` item and override the defaults.
-- AFL wrapper will simulate if `afl-fuzz` is not available.
-- Code avoids GPU requirements; devices are passed through but not enforced.
+## Documentation & Artifacts
+- `docs/point2mesh_report.md` – detailed CPU/GPU baseline report (commands, environments, metrics).  
+- `docs/point2mesh_file_structure.md` – reference map for scripts, workdir outputs, and logs.  
+- `docs/ms1_status.md` – project-wide status dashboard with latest loss numbers.  
+- Comparison plots live in `workdir/COSEG/Point2Mesh/ms1_coseg_*_cpu_gpu_compare.png`; summary table at `workdir/COSEG/Point2Mesh/gpu_cpu_summary.md`.
+
+## Tooling Highlights
+- **Preprocessing**:  
+  - `scripts/normalize_with_normals.py` – Open3D normalization + normal estimation.  
+  - `scripts/icp_align_mesh_to_pcd.py` – ICP alignment of initial meshes to point clouds (used for COSEG chair baseline).
+- **Runner configuration**: `configs/subjects.yml` Point2Mesh entries invoke `python main.py --gpu 0 ...` so COSEG runs default to GPU when available.
+
+## Notes
+- Subject entry templates accept placeholders (`{mesh}`, `{weights}`, `{data_root}`, `{device}`); dataset blocks can override defaults.  
+- AFL wrapper still simulates if `afl-fuzz` is missing.  
+- GPU resources are optional for most subjects, but Point2Mesh COSEG baselines now leverage CUDA for faster convergence.
