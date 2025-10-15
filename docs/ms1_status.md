@@ -36,7 +36,7 @@ Notes:
 | MeshCNN | `python train.py --dataroot datasets/shrec_16 --name ms1_smoke --niter 1 --niter_decay 0 --batch_size 2 --gpu_ids -1 --num_threads 0` | ✅ Runs; loss printed, model saved | `logs/meshcnn_smoke.log` | Restore GPU config when running full MS1; current smoke uses CPU + tiny dataset slice. |
 | HodgeNet | `python train_classification.py --out runs/ms1_eval --n_epochs 1 --bs 2 --data data/shrec` | ✅ Runs on SHREC sample | `logs/hodgenet_smoke.log` | For ModelNet40, preprocess to produce `labels.txt` and splits (repo script). Update entry once processed. |
 | MeshSDF | `python train_deep_sdf.py -e experiments/bob_and_spot` (timeout after 10 min) → `python demo_optimizer.py -e ... --fast` | ⚠️ Long-running (still printing epochs; no early stop) | `logs/meshsdf_smoke.log` | Use CPU-friendly spec or reduce `NumEpochs` in `experiments/bob_and_spot/specs.json`; verify CUDA before full run. |
-| Point2Mesh | `python main.py --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/sample.ply --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/initmesh.obj --iterations 160 --export-interval 10 --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_chair/` | ⚠️ CPU fine-tune (chair/vase/tele) plateau at ≈0.09/−0.11/0.03 | `ms1/logs/ms1_point2mesh_coseg_finetune.jsonl` | Investigate chair loss >0.02 (scale normalization? more iterations?) before burning GPU cycles. |
+| Point2Mesh | `python main.py --gpu 0 --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/sample.ply --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/initmesh.obj --iterations 160 --export-interval 10 --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_chair/` | ✅ GPU baseline (chair/vase/tele) reaches 0.0178/−0.1570/0.0003 | `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}_gpu_160/stdout.log` | Extend to additional COSEG samples and fold metrics into docs/dashboard. |
 | MeshWalker | `python train_val.py coseg chairs --epochs 1 --data_root ../../data/datasets/CoSeg` | ❌ Fails: `DATASET error` (no processed `.npz`) | `logs/meshwalker_smoke.log` | `dataset_prepare.py` created empty processed folders; populate COSEG meshes per README or point to prepared `.npz`. |
 | DeepGCNs | `python examples/modelnet_cls/main.py --epochs 1 --batch_size 8 --data_dir ../../data/datasets/ModelNet40` | ❌ Fails: download of `modelnet40_ply_hdf5_2048` blocked → empty data | `logs/deepgcn_smoke.log` | Manually place `modelnet40_ply_hdf5_2048` under `ModelNet40` or set `--data_dir` to existing preprocessed folder; re-run. |
 
@@ -45,28 +45,24 @@ Notes:
 - Populate ModelNet40 with `modelnet40_ply_hdf5_2048` or adjust SpiderCNN entry to pass explicit path.
 - HodgeNet: preprocess ModelNet40 to produce `labels.txt` (per repo instructions) or update command to point at processed data.
 - MeshSDF: revisit experiment specs and argument expectations; run provided preprocessing to create splits and JSON configs.
-- Point2Mesh: install PyTorch3D (matching CUDA/PyTorch build) or use Docker image; verify Manifold binaries path in `options.py`.
-- Point2Mesh CPU fine-tune: chair loss still ≈0.09 (target <0.02); consider point-cloud normalization or higher-iteration/GPU pass.
-- 扩展至 COSEG: vases / tele_aliens
+- Point2Mesh: schedule extended COSEG sweeps (multiple shapes, >160 iters) now that GPU path is validated.
+- Point2Mesh: regenerate aggregated markdown/plots with GPU + CPU comparisons in repository docs.
 - MeshWalker: pin `protobuf<=3.20.x` (or set `PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`) in `meshwalker` environment.
 - DeepGCNs: install `torch_cluster` (matching PyTorch/CUDA) and confirm ModelNet40 pre-processing.
 - SpiderCNN: provision TF1.3/CUDA8 environment or container when ready.
 - Automate dataset path placeholder replacement in `SubjectRunner` to cover multi-dataset references beyond the active dataset.
 
-### Point2Mesh (CPU) status
-- ⚠️ COSEG fine-tune (CPU)
-  - Templates: `coseg_chair/coseg_vase/coseg_tele` (160 iters) in `ms1/configs/subjects.yml`.
-  - Loss (min): chair ≈0.086, vase ≈−0.108, tele ≈0.019 (target <0.02 not yet met for chair).
-  - Runtime: ≈520 s per entry on CPU; see `ms1/logs/ms1_point2mesh_coseg_finetune.jsonl`.
-  - Outputs: `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}/` (`last_recon.obj`, periodic checkpoints).
-- ✅ Toy giraffe smoke
-  - env: point2mesh (torch 2.3.0+cpu / torchvision 0.18.0+cpu / pytorch3d 0.7.6)
-  - cmd: `python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu`
-  - duration ≈30.2 s, exit code 0 — outputs in `ms1/workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu/`; log `ms1/logs/point2mesh_smoke.log`, JSON `ms1/logs/ms1_point2mesh_smoke.jsonl`.
-
-### Point2Mesh (CPU baseline)
-- chair: min=0.1058, final=0.1064, log: workdir/COSEG/Point2Mesh/ms1_coseg_chair_cpu_160/stdout.log
-- vase:  min=-0.1075,  final=-0.1055,  log: workdir/COSEG/Point2Mesh/ms1_coseg_vase_cpu_160/stdout.log
-- tele:  min=0.0191,  final=0.0296,  log: workdir/COSEG/Point2Mesh/ms1_coseg_tele_cpu_160/stdout.log
-- notes: CPU-only run (torch cpu). Chair uses normalized PLY + ICP-aligned initmesh; vase/tele use default samples.
-- date: 2025-10-12
+### Point2Mesh baselines
+- ✅ Toy giraffe smoke  
+  - env: point2mesh (torch 2.3.0+cpu / torchvision 0.18.0+cpu / pytorch3d 0.7.6)  
+  - cmd: `python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu`  
+  - duration ≈30.2 s, exit code 0 — outputs in `workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu/`; log `ms1/logs/point2mesh_smoke.log`, JSON `ms1/logs/ms1_point2mesh_smoke.jsonl`.
+- ⚙️ COSEG fine-tune (CPU, 160 iters)  
+  - Templates: `coseg_chair/coseg_vase/coseg_tele` in `ms1/configs/subjects.yml`.  
+  - Loss (min/final): chair 0.1058 / 0.1064, vase −0.1075 / −0.1055, tele 0.0191 / 0.0296.  
+  - Runtime ≈520 s per entry; outputs under `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}_cpu_160/` with periodic checkpoints.
+- 🚀 COSEG fine-tune (GPU, 160 iters; env `point2mesh-gpu`)  
+  - Command mirrors CPU template with `--gpu 0`; outputs in `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}_gpu_160/`.  
+  - Loss (min/final): chair 0.0178 / 0.0222, vase −0.1570 / −0.1551, tele −0.0185 / 0.0003.  
+  - Runtime ≈45 s per entry; comparison plots + markdown table at `workdir/COSEG/Point2Mesh/ms1_coseg_*_cpu_gpu_compare.png` and `workdir/COSEG/Point2Mesh/gpu_cpu_summary.md`.  
+  - Logs: `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}_{cpu,gpu}_160/stdout.log`.
