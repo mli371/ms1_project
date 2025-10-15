@@ -9,9 +9,11 @@ import time
 from pathlib import Path
 from string import Formatter
 from typing import Dict, Optional, Tuple
+import re
 
 
 _LOG = logging.getLogger(__name__)
+BASE_ROOT = Path(os.environ.get("MS_ROOT", Path(__file__).resolve().parents[1]))
 class _SafeDict(dict):
     def __missing__(self, key):  # type: ignore[override]
         return "{" + key + "}"
@@ -61,6 +63,12 @@ def _write_point_cloud(points, out_path: str) -> None:
             f.write(f"{x} {y} {z}\n")
 
 
+def _canonical(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    return "".join(ch for ch in value.lower() if ch.isalnum())
+
+
 class SubjectRunner:
     """Wraps a subject for single-mesh inference with entry templates and adapters."""
 
@@ -75,6 +83,8 @@ class SubjectRunner:
         extra: Optional[Dict] = None,
         workdir: Optional[str] = None,
         pre_cmd: Optional[str] = None,
+        dataset_name: Optional[str] = None,
+        auto_append_mesh: Optional[bool] = None,
     ):
         self.spec = spec
         self.dataset_root = dataset_root or ""
@@ -83,10 +93,44 @@ class SubjectRunner:
         self.device = device or ""
         self.weights_path = weights_path or ""
         self.extra = extra or {}
-        self.workdir = workdir or spec.get("workdir") or spec.get("path")
+        raw_workdir = workdir or spec.get("workdir")
+        if raw_workdir:
+            candidate = Path(raw_workdir)
+            if not candidate.is_absolute():
+                candidate = BASE_ROOT / candidate
+            candidate.mkdir(parents=True, exist_ok=True)
+            self.workdir = str(candidate)
+        else:
+            self.workdir = None
         self.pre_cmd = pre_cmd or spec.get("pre_cmd")
+        if self.pre_cmd:
+            env_match = re.search(r"conda activate\s+([\w\-]+)", self.pre_cmd)
+            if env_match:
+                env_name = env_match.group(1)
+                candidate_paths = [
+                    Path.home() / "miniconda3" / "envs" / env_name / "bin" / "python",
+                    Path(os.environ.get("CONDA_PREFIX", "")) / "bin" / "python"
+                    if os.environ.get("CONDA_PREFIX") else None,
+                ]
+                candidate_python = next((p for p in candidate_paths if p and p.exists()), None)
+                if candidate_python:
+                    pattern = "python -c \"import os,torch;print(os.path.join(os.path.dirname(torch.__file__),'lib'))\""
+                    replacement = f"{candidate_python} -c \"import os,torch;print(os.path.join(os.path.dirname(torch.__file__),'lib'))\""
+                    self.pre_cmd = self.pre_cmd.replace(pattern, replacement)
         self.input_format = spec.get("input_format", "triangle_mesh")
         self.adapter = spec.get("adapter") or spec.get("input_adapter", self.input_format)
+        self.dataset_name = dataset_name or ""
+        if auto_append_mesh is None:
+            auto_append_mesh = spec.get("auto_append_mesh", True)
+        self.auto_append_mesh = bool(auto_append_mesh)
+        exec_path = spec.get("path")
+        if exec_path:
+            candidate = Path(exec_path)
+            if not candidate.is_absolute():
+                candidate = BASE_ROOT / candidate
+            self.exec_dir = str(candidate)
+        else:
+            self.exec_dir = None
 
     def _prepare_input(self, mesh_path: str) -> Tuple[str, Optional[str]]:
         """Return path passed to command and temp dir to cleanup."""
@@ -134,19 +178,32 @@ class SubjectRunner:
         }
         command_inputs.update({k: str(v) for k, v in self.extra.items()})
         cmd = _safe_format(self.entry_template, command_inputs)
+        dataset_key = _canonical(self.dataset_name)
+
+        def replace_dataset(match):
+            key = _canonical(match.group(1))
+            if key == dataset_key and self.dataset_root:
+                return self.dataset_root
+            return match.group(0)
+
+        cmd = re.sub(r"\$\{DATASET:([^}]+)\}", replace_dataset, cmd)
+        if self.auto_append_mesh and mesh_path and "{mesh}" not in self.entry_template:
+            cmd = f"{cmd} {shlex_quote(mesh_path)}"
         if self.pre_cmd:
-            cmd = f"{self.pre_cmd} && {cmd}"
+            preamble = self.pre_cmd.strip()
+            if preamble:
+                cmd = f"{preamble} && {cmd}"
         return cmd, command_inputs
 
     def run_once(self, mesh_path: str, timeout_sec: int) -> Dict:
-        self.last_command: Optional[str] = None
-        self.last_inputs: Optional[Dict[str, str]] = None
+        self.last_command = None
+        self.last_inputs = None
 
-        start = time.time()
+        overall_start = time.time()
         try:
             input_path, tmpdir = self._prepare_input(mesh_path)
         except Exception:
-            dur = time.time() - start
+            end = time.time()
             _LOG.debug(
                 "Input preparation failed for subject '%s'", self.spec.get("name"), exc_info=True
             )
@@ -155,9 +212,14 @@ class SubjectRunner:
                 "crashed": False,
                 "error_type": "parse_error",
                 "prediction": None,
-                "time_sec": float(dur),
+                "time_sec": float(end - overall_start),
                 "command": None,
                 "inputs": None,
+                "stdout": "",
+                "stderr": "",
+                "exit_code": -1,
+                "start_time": overall_start,
+                "end_time": end,
             }
         try:
             cmd, mapping = self._build_command(input_path)
@@ -173,14 +235,15 @@ class SubjectRunner:
             env.setdefault("MS1_WEIGHTS", self.weights_path)
         if self.dataset_root:
             env.setdefault("MS1_DATA_ROOT", self.dataset_root)
+        if self.workdir:
+            env.setdefault("MS1_WORKDIR", self.workdir)
 
-        cwd = self.workdir or os.getcwd()
-        start = time.time()
+        cwd = self.exec_dir or self.workdir or os.getcwd()
+        exec_start = time.time()
         try:
             _LOG.debug("[%s] running: %s", self.spec.get("name"), cmd)
             proc = subprocess.run(
-                cmd,
-                shell=True,
+                ["/bin/bash", "-lc", cmd],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=timeout_sec,
@@ -188,7 +251,8 @@ class SubjectRunner:
                 cwd=cwd,
                 text=True,
             )
-            dur = time.time() - start
+            end = time.time()
+            dur = end - exec_start
             accepted = proc.returncode == 0
             error_type: Optional[str] = None
             crashed = False
@@ -218,50 +282,70 @@ class SubjectRunner:
                 "time_sec": float(dur),
                 "command": cmd,
                 "inputs": mapping,
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "exit_code": proc.returncode,
+                "start_time": exec_start,
+                "end_time": end,
             }
             self.last_command = cmd
             self.last_inputs = mapping
             return result
-        except subprocess.TimeoutExpired:
-            dur = time.time() - start
+        except subprocess.TimeoutExpired as exc:
+            end = time.time()
             result = {
                 "accepted": False,
                 "crashed": False,
                 "error_type": "timeout",
                 "prediction": None,
-                "time_sec": float(dur),
+                "time_sec": float(end - exec_start),
                 "command": cmd,
                 "inputs": mapping,
+                "stdout": exc.stdout or "",
+                "stderr": exc.stderr or "",
+                "exit_code": -2,
+                "start_time": exec_start,
+                "end_time": end,
             }
             self.last_command = cmd
             self.last_inputs = mapping
             return result
         except FileNotFoundError:
-            dur = time.time() - start
+            end = time.time()
             _LOG.warning("Entry command not found for subject '%s'", self.spec.get("name"))
             result = {
                 "accepted": False,
                 "crashed": False,
                 "error_type": "runtime_error",
                 "prediction": None,
-                "time_sec": float(dur),
+                "time_sec": float(end - exec_start),
                 "command": cmd,
                 "inputs": mapping,
+                "stdout": "",
+                "stderr": "",
+                "exit_code": -1,
+                "start_time": exec_start,
+                "end_time": end,
             }
             self.last_command = cmd
             self.last_inputs = mapping
             return result
         except Exception as exc:
-            dur = time.time() - start
+            end = time.time()
             _LOG.exception("Subject '%s' crashed: %s", self.spec.get("name"), exc)
             result = {
                 "accepted": False,
                 "crashed": True,
                 "error_type": "runtime_error",
                 "prediction": None,
-                "time_sec": float(dur),
+                "time_sec": float(end - exec_start),
                 "command": cmd,
                 "inputs": mapping,
+                "stdout": "",
+                "stderr": str(exc),
+                "exit_code": -3,
+                "start_time": exec_start,
+                "end_time": end,
             }
             self.last_command = cmd
             self.last_inputs = mapping

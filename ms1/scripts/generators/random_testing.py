@@ -6,31 +6,19 @@ import tempfile
 import time
 from typing import Dict, Tuple
 
-from ..subject_api import SubjectRunner
+try:
+    from ..subject_api import SubjectRunner
+except ImportError:  # pragma: no cover - fallback when executed as a script
+    from subject_api import SubjectRunner  # type: ignore
 
 _LOG = logging.getLogger(__name__)
 
 
-def _write_cube_obj(path: str, noise: float = 0.0) -> None:
-    verts = [
-        (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
-    ]
-    if noise:
-        verts = [(x + random.uniform(-noise, noise), y + random.uniform(-noise, noise), z + random.uniform(-noise, noise)) for x, y, z in verts]
-    faces = [
-        (1, 2, 3), (1, 3, 4),  # bottom
-        (5, 6, 7), (5, 7, 8),  # top
-        (1, 2, 6), (1, 6, 5),  # side
-        (2, 3, 7), (2, 7, 6),
-        (3, 4, 8), (3, 8, 7),
-        (4, 1, 5), (4, 5, 8),
-    ]
-    with open(path, "w") as f:
-        for x, y, z in verts:
-            f.write(f"v {x} {y} {z}\n")
-        for a, b, c in faces:
-            f.write(f"f {a} {b} {c}\n")
+def _perturb_seed(src: str, dst: str) -> None:
+    """Light perturbation: copy and append a noop OBJ comment to keep it well-formed."""
+    with open(src, "r", errors="ignore") as f_in, open(dst, "w") as f_out:
+        f_out.write(f_in.read())
+        f_out.write(f"\n# ms1_random_perturb_{random.randint(0, 1_000_000)}\n")
 
 
 def run(
@@ -40,8 +28,12 @@ def run(
     threads: int,
     mutation_budget: int,
 ) -> Tuple[Dict, Dict]:
+    """
+    Executes random testing by repeatedly perturbing the seed and invoking the subject.
+    Returns (metrics, meta) where metrics match the JSONL schema fields subset, and meta has tool metadata.
+    """
     start = time.time()
-    tmpdir = tempfile.mkdtemp(prefix="ms1_randmesh_")
+    tmpdir = tempfile.mkdtemp(prefix="ms1_rand_")
     generated_total = 0
     valid_count = 0
     invalid_breakdown = {"parse_error": 0, "runtime_error": 0, "timeout": 0, "constraint_fail": 0}
@@ -51,10 +43,11 @@ def run(
         for i in range(mutation_budget):
             if (time.time() - start) >= time_budget_sec:
                 break
-            dst = os.path.join(tmpdir, f"mesh_{i}.obj")
+            dst = os.path.join(tmpdir, f"mut_{i}.obj")
             try:
-                _write_cube_obj(dst, noise=min(0.2, random.random() * 0.1))
+                _perturb_seed(seed_path, dst)
             except Exception:
+                # treat as parse error of generated
                 invalid_breakdown["parse_error"] += 1
                 generated_total += 1
                 continue
@@ -82,8 +75,7 @@ def run(
         "execution_time_sec": float(time.time() - start),
     }
     meta = {
-        "tool_version": "random_mesh v0",
+        "tool_version": "random_testing v0",
         "tool_args": f"--threads={threads} --budget={mutation_budget}",
     }
     return metrics, meta
-

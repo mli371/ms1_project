@@ -6,16 +6,37 @@ import tempfile
 import time
 from typing import Dict, Tuple
 
-from ..subject_api import SubjectRunner
+try:
+    from ..subject_api import SubjectRunner
+except ImportError:  # pragma: no cover
+    from subject_api import SubjectRunner  # type: ignore
 
 _LOG = logging.getLogger(__name__)
 
 
-def _perturb_seed(src: str, dst: str) -> None:
-    """Light perturbation: copy and append a noop OBJ comment to keep it well-formed."""
-    with open(src, "r", errors="ignore") as f_in, open(dst, "w") as f_out:
-        f_out.write(f_in.read())
-        f_out.write(f"\n# ms1_random_perturb_{random.randint(0, 1_000_000)}\n")
+def _erdos_renyi_graph(n: int, p: float):
+    edges = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if random.random() < p:
+                edges.append((i, j))
+    return edges
+
+
+def _graph_to_triangle_fan_obj(n: int, edges, path: str):
+    # Simple layout on circle -> triangle fan around vertex 0
+    import math
+    verts = []
+    for k in range(n):
+        angle = 2 * math.pi * k / max(1, n)
+        verts.append((math.cos(angle), math.sin(angle), 0.0))
+    with open(path, "w") as f:
+        for x, y, z in verts:
+            f.write(f"v {x} {y} {z}\n")
+        # Use any two consecutive neighbors of 0 to form triangles
+        nbrs = sorted([b if a == 0 else a for (a, b) in edges if a == 0 or b == 0])
+        for i in range(1, len(nbrs) - 1):
+            f.write(f"f {1} {nbrs[i] + 1} {nbrs[i + 1] + 1}\n")
 
 
 def run(
@@ -25,29 +46,30 @@ def run(
     threads: int,
     mutation_budget: int,
 ) -> Tuple[Dict, Dict]:
-    """
-    Executes random testing by repeatedly perturbing the seed and invoking the subject.
-    Returns (metrics, meta) where metrics match the JSONL schema fields subset, and meta has tool metadata.
-    """
     start = time.time()
-    tmpdir = tempfile.mkdtemp(prefix="ms1_rand_")
+    tmpdir = tempfile.mkdtemp(prefix="ms1_randgraph_")
     generated_total = 0
     valid_count = 0
     invalid_breakdown = {"parse_error": 0, "runtime_error": 0, "timeout": 0, "constraint_fail": 0}
     crash_count = 0
+    t_graph_build = 0.0
 
     try:
         for i in range(mutation_budget):
             if (time.time() - start) >= time_budget_sec:
                 break
-            dst = os.path.join(tmpdir, f"mut_{i}.obj")
+            dst = os.path.join(tmpdir, f"graph_{i}.obj")
+            t0 = time.time()
             try:
-                _perturb_seed(seed_path, dst)
+                n = random.randint(8, 32)
+                p = random.uniform(0.1, 0.3)
+                edges = _erdos_renyi_graph(n, p)
+                _graph_to_triangle_fan_obj(n, edges, dst)
             except Exception:
-                # treat as parse error of generated
                 invalid_breakdown["parse_error"] += 1
                 generated_total += 1
                 continue
+            t_graph_build += time.time() - t0
             res = subject.run_once(dst, timeout_sec=max(1, int(min(30, time_budget_sec))))
             generated_total += 1
             if res.get("accepted"):
@@ -70,10 +92,10 @@ def run(
         "invalid_breakdown": invalid_breakdown,
         "crash_count": crash_count,
         "execution_time_sec": float(time.time() - start),
+        "t_graph_build": float(t_graph_build),
     }
     meta = {
-        "tool_version": "random_testing v0",
+        "tool_version": "random_graph v0",
         "tool_args": f"--threads={threads} --budget={mutation_budget}",
     }
     return metrics, meta
-

@@ -1,0 +1,27 @@
+# entry_template.coseg_demo
+smoke: |
+  python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m/
+
+coseg_chair: |
+  CUDA_VISIBLE_DEVICES="" python main.py \
+    --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/sample.ply \
+    --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/chairs/initmesh.obj \
+    --iterations 160 \
+    --export-interval 10 \
+    --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_chair/
+
+coseg_vase: |
+  CUDA_VISIBLE_DEVICES="" python main.py \
+    --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/vases/sample.ply \
+    --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/vases/initmesh.obj \
+    --iterations 160 \
+    --export-interval 10 \
+    --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_vase/
+
+coseg_tele: |
+  CUDA_VISIBLE_DEVICES="" python main.py \
+    --input-pc ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/tele_aliens/sample.ply \
+    --initial-mesh ${MS_ROOT}/workdir/COSEG/Point2Mesh/coseg_ply/tele_aliens/initmesh.obj \
+    --iterations 160 \
+    --export-interval 10 \
+    --save-path ${MS_ROOT}/workdir/COSEG/Point2Mesh/ms1_coseg_tele/

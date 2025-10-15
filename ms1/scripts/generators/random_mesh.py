@@ -6,34 +6,34 @@ import tempfile
 import time
 from typing import Dict, Tuple
 
-from ..subject_api import SubjectRunner
+try:
+    from ..subject_api import SubjectRunner
+except ImportError:  # pragma: no cover
+    from subject_api import SubjectRunner  # type: ignore
 
 _LOG = logging.getLogger(__name__)
 
 
-def _erdos_renyi_graph(n: int, p: float):
-    edges = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            if random.random() < p:
-                edges.append((i, j))
-    return edges
-
-
-def _graph_to_triangle_fan_obj(n: int, edges, path: str):
-    # Simple layout on circle -> triangle fan around vertex 0
-    import math
-    verts = []
-    for k in range(n):
-        angle = 2 * math.pi * k / max(1, n)
-        verts.append((math.cos(angle), math.sin(angle), 0.0))
+def _write_cube_obj(path: str, noise: float = 0.0) -> None:
+    verts = [
+        (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
+    ]
+    if noise:
+        verts = [(x + random.uniform(-noise, noise), y + random.uniform(-noise, noise), z + random.uniform(-noise, noise)) for x, y, z in verts]
+    faces = [
+        (1, 2, 3), (1, 3, 4),  # bottom
+        (5, 6, 7), (5, 7, 8),  # top
+        (1, 2, 6), (1, 6, 5),  # side
+        (2, 3, 7), (2, 7, 6),
+        (3, 4, 8), (3, 8, 7),
+        (4, 1, 5), (4, 5, 8),
+    ]
     with open(path, "w") as f:
         for x, y, z in verts:
             f.write(f"v {x} {y} {z}\n")
-        # Use any two consecutive neighbors of 0 to form triangles
-        nbrs = sorted([b if a == 0 else a for (a, b) in edges if a == 0 or b == 0])
-        for i in range(1, len(nbrs) - 1):
-            f.write(f"f {1} {nbrs[i] + 1} {nbrs[i + 1] + 1}\n")
+        for a, b, c in faces:
+            f.write(f"f {a} {b} {c}\n")
 
 
 def run(
@@ -44,29 +44,23 @@ def run(
     mutation_budget: int,
 ) -> Tuple[Dict, Dict]:
     start = time.time()
-    tmpdir = tempfile.mkdtemp(prefix="ms1_randgraph_")
+    tmpdir = tempfile.mkdtemp(prefix="ms1_randmesh_")
     generated_total = 0
     valid_count = 0
     invalid_breakdown = {"parse_error": 0, "runtime_error": 0, "timeout": 0, "constraint_fail": 0}
     crash_count = 0
-    t_graph_build = 0.0
 
     try:
         for i in range(mutation_budget):
             if (time.time() - start) >= time_budget_sec:
                 break
-            dst = os.path.join(tmpdir, f"graph_{i}.obj")
-            t0 = time.time()
+            dst = os.path.join(tmpdir, f"mesh_{i}.obj")
             try:
-                n = random.randint(8, 32)
-                p = random.uniform(0.1, 0.3)
-                edges = _erdos_renyi_graph(n, p)
-                _graph_to_triangle_fan_obj(n, edges, dst)
+                _write_cube_obj(dst, noise=min(0.2, random.random() * 0.1))
             except Exception:
                 invalid_breakdown["parse_error"] += 1
                 generated_total += 1
                 continue
-            t_graph_build += time.time() - t0
             res = subject.run_once(dst, timeout_sec=max(1, int(min(30, time_budget_sec))))
             generated_total += 1
             if res.get("accepted"):
@@ -89,11 +83,9 @@ def run(
         "invalid_breakdown": invalid_breakdown,
         "crash_count": crash_count,
         "execution_time_sec": float(time.time() - start),
-        "t_graph_build": float(t_graph_build),
     }
     meta = {
-        "tool_version": "random_graph v0",
+        "tool_version": "random_mesh v0",
         "tool_args": f"--threads={threads} --budget={mutation_budget}",
     }
     return metrics, meta
-
