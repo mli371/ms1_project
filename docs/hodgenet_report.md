@@ -27,13 +27,20 @@
 2. **Offline preprocessing assumptions** – meshes are decimated offline to ≈500 faces; online decimation / augmentation disabled (`decimate_range=None`, `max_stretch=0`, `random_rotation=False`).
 3. **Baseline config** – validation performed on remaining meshes per class (shuffle + split handled by the training script).
 
-## 5. Instrumentation & Logging
+## 5. Model & Data Artefacts
+- **Checkpoints**: Baseline 20e exports `workdir/ModelNet40/HodgeNet_lite/baseline_20/best.pth` (highest validation accuracy) and `.../last.pth` (final epoch), plus `4/9/14/19.pth` for intermediate inspection.
+- **Dataset**: Training/validation pulls from `data/datasets/ModelNet40_lite600/`; retain this directory unchanged for MS2 fuzzing / perturbation studies.
+- **Inference entry point**: `subjects_src/HodgeNet/train_classification.py` builds the `HodgeNetModel` (see `subjects_src/HodgeNet/hodgenet.py`). For downstream inference, load `best.pth` via `torch.load(...)["model_state_dict"]` and call `HodgeNetModel` directly (batched forward identical to training loop).
+
+## 6. Instrumentation & Logging
 - **Eigensolver fallback** – `subjects_src/HodgeNet/hodgeautograd.py` catches ARPACK singular-factor errors, substitutes zero tensors, and records device/dtype metadata before copying to CUDA (see lines 64‑104 and 158‑210 in the patched file).
 - **Probe timings** – `subjects_src/HodgeNet/train_classification.py` logs probe A/B/C timestamps, first-batch device distribution, per-batch iteration durations, and aggregates to `logs/hodgenet_probe_timing.json` / `logs/hodgenet_perf_pinmem.json`.
+  - `hodgenet_probe_timing.json`: `timestamps` (raw epoch markers) and `durations` (A→B, B→C, etc.).
+  - `hodgenet_perf_pinmem.json`: `iteration_log` (per-batch timing records) and phase-level statistics (`stats.train/validation`).
 - **Eigenflow report** – `logs/hodgenet_eigenflow_report.json` tracks CPU shared tensors vs CUDA copies, ensuring no CUDA handles are shared across processes post-spawn.
 - **Baseline summaries** – `logs/hodgenet_baseline10_result.json`, `logs/hodgenet_baseline20_result.json` capture wall-clock, batch size, accuracy/loss, and environment info.
 
-## 6. Baseline Runs
+## 7. Baseline Runs
 | Run | Epochs | Batch size | Duration | Best val acc | Final val loss | Output Dir | Logs |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Smoke (repeatability) | 1 × 3 | 4 | ~54 s each (σ ≈ 0.36 s) | – | – | `workdir/ModelNet40/HodgeNet_lite/baseline_debug/` | `logs/hodgenet_repeatability.json`, `logs/hodgenet_perf_pinmem.json` |
@@ -48,19 +55,19 @@
 - Runtime log: `.../stdout.log`
 - Telemetry: `logs/hodgenet_probe_timing.json`, `logs/hodgenet_perf_pinmem.json`, `logs/hodgenet_eigenflow_report.json`
 
-## 7. Observations
+## 8. Observations
 1. **Stability** – No CUDA handle errors after enforcing spawn start method and CPU shared buffers. ARPACK warnings remain but are safely handled by the fallback.
 2. **Performance** – With `pin_memory=True`, first training batch ≈3.2 s, subsequent batches ≈2.2 s; validation batches ≈8.5 s due to eigensolver overhead.
 3. **Accuracy plateau** – Validation accuracy stagnates near 25%. Loss curves suggest underfitting/overfitting crossover; additional regularisation or learning-rate scheduling may be required.
 4. **Repeatability** – Three sequential 1‑epoch runs show <1% wall-clock variance and consistent probe timings (see `logs/hodgenet_repeatability.json`).
 
-## 8. Next Steps
+## 9. Next Steps
 1. **Hyper-parameter sweeps** – Explore learning-rate decay, weight decay, or increased eigenvector counts to push accuracy beyond 0.25.
 2. **Validation cadence** – Increase `val_every` for longer runs to monitor drift and catch potential degeneracy earlier.
 3. **ARPACK investigations** – Analyse singular-matrix cases (recorded in eigenflow report) to identify problematic meshes; consider preconditioning or alternative eigensolvers.
 4. **Runner integration** – Wire HodgeNet baselines into the MS1 runner once dataset preprocessing is automated for the full ModelNet40 split.
 
-## 9. Quick Reference
+## 10. Quick Reference
 - **Command (20e)**:
   ```bash
   PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1 \

@@ -13,11 +13,11 @@ datasets:
       Official: https://faust-leaderboard.is.tuebingen.mpg.de/
       Registration required. Used for MeshCNN (classification/segmentation).
   
-  ShapeNet: 
-    path: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
-    info: >
-      Official: https://www.kaggle.com/datasets/mitkir/shapenet
-      Used for MeshCNN, MeshSDF.
+  # ShapeNet: 
+  #   path: data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal
+  #   info: >
+  #     Official: https://www.kaggle.com/datasets/mitkir/shapenet
+  #     Used for MeshCNN, MeshSDF.
 
   ModelNet40: 
     path: data/datasets/ModelNet40
