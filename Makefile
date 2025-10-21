@@ -14,7 +14,7 @@ FULL_CSV=logs/agg/full_summary.csv
 .PHONY: smoke full aggregate clean
 
 smoke:
-	$(PY) scripts/ms1_runner.py \
+	$(PY) -m scripts.ms1.ms1_runner \
 	  --subjects $(SUBJECTS) \
 	  --datasets $(DATASETS) \
 	  --seeds $(SEEDS) \
@@ -25,7 +25,7 @@ smoke:
 	  --aggregate $(SMOKE_CSV)
 
 full:
-	$(PY) scripts/ms1_runner.py \
+	$(PY) -m scripts.ms1.ms1_runner \
 	  --subjects $(SUBJECTS) \
 	  --datasets $(DATASETS) \
 	  --seeds $(SEEDS) \
@@ -35,23 +35,23 @@ full:
 	  --aggregate $(FULL_CSV)
 
 aggregate:
-	$(PY) scripts/ms1_runner.py --subjects $(SUBJECTS) --datasets $(DATASETS) --seeds $(SEEDS) --policy $(POLICY) --tools random --out $(SMOKE_OUT) --aggregate $(SMOKE_CSV)
+	$(PY) -m scripts.ms1.ms1_runner --subjects $(SUBJECTS) --datasets $(DATASETS) --seeds $(SEEDS) --policy $(POLICY) --tools random --out $(SMOKE_OUT) --aggregate $(SMOKE_CSV)
 
 clean:
 	rm -rf logs/raw/* logs/agg/*
 
 run-p2m:
-	MS_ROOT=$$(pwd) python -m ms1.scripts.ms1_runner \
-	 --subjects ms1/configs/subjects.yml \
-	 --datasets ms1/configs/datasets.yml \
-	 --policy   ms1/configs/ms1_policy.yml \
+	MS_ROOT=$$(pwd) python -m scripts.ms1.ms1_runner \
+	 --subjects configs/subjects.yml \
+	 --datasets configs/datasets.yml \
+	 --policy   configs/ms1_policy.yml \
 	 --topic point2mesh --max-prompts 1 \
-	 --out ms1/logs/ms1_point2mesh_smoke.jsonl
+	 --out logs/ms1_point2mesh_smoke.jsonl
 
 run-topic:
-	MS_ROOT=$$(pwd) python -m ms1.scripts.ms1_runner \
-	 --subjects ms1/configs/subjects.yml \
-	 --datasets ms1/configs/datasets.yml \
-	 --policy   ms1/configs/ms1_policy.yml \
+	MS_ROOT=$$(pwd) python -m scripts.ms1.ms1_runner \
+	 --subjects configs/subjects.yml \
+	 --datasets configs/datasets.yml \
+	 --policy   configs/ms1_policy.yml \
 	 --topic $${TOPIC} --max-prompts 1 \
-	 --out ms1/logs/ms1_$${TOPIC}_smoke.jsonl
+	 --out logs/ms1_$${TOPIC}_smoke.jsonl

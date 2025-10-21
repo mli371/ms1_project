@@ -23,11 +23,11 @@ except Exception:  # pragma: no cover - fallback for direct script execution
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
-    from ms1.scripts.subject_api import SubjectRunner
-    from ms1.scripts.generators import random_testing as gen_random
-    from ms1.scripts.generators import afl_wrapper as gen_afl
-    from ms1.scripts.generators import random_graph as gen_rgraph
-    from ms1.scripts.generators import random_mesh as gen_rmesh
+    from scripts.ms1.subject_api import SubjectRunner
+    from scripts.ms1.generators import random_testing as gen_random
+    from scripts.ms1.generators import afl_wrapper as gen_afl
+    from scripts.ms1.generators import random_graph as gen_rgraph
+    from scripts.ms1.generators import random_mesh as gen_rmesh
     print("[ms1_runner] WARN: injected repo root to PYTHONPATH for direct-script run", file=sys.stderr)
 
 
@@ -68,7 +68,7 @@ def iso_from_timestamp(ts: Optional[float]) -> Optional[str]:
 def _find_repo_root(start: str) -> Optional[str]:
     cur = os.path.abspath(start)
     while cur != os.path.dirname(cur):
-        if os.path.exists(os.path.join(cur, "ms1", "configs")):
+        if os.path.exists(os.path.join(cur, "configs")):
             return cur
         cur = os.path.dirname(cur)
     return None
@@ -613,7 +613,7 @@ def main():
     if repo:
         os.chdir(repo)
     else:
-        raise RuntimeError("Cannot locate repo root (ms1/configs not found)")
+        raise RuntimeError("Cannot locate repo root (configs/ not found)")
     subjects_cfg = load_yaml(args.subjects)
     datasets_cfg = load_yaml(args.datasets)
     seeds_cfg = load_yaml(args.seeds) if args.seeds else {"seeds": []}
