@@ -30,7 +30,7 @@ Notes:
 - SpiderCNN disabled; requires TF1.3 + CUDA 8 + Python 2.7 and `modelnet40_ply_hdf5_2048` under `ModelNet40`.
 
 ## Smoke Test Results
-> Recommended entry: `MS_ROOT=$(pwd) python -m ms1.scripts.ms1_runner ...` (see README). Script-style invocation now emits a warning but still works.
+> Recommended entry: `MS_ROOT=$(pwd) python -m scripts.ms1.ms1_runner ...` (see README). Script-style invocation now emits a warning but still works.
 | Subject | Command (condensed) | Result | Log | Next Action |
 |---|---|---|---|---|
 | MeshCNN | `python train.py --dataroot datasets/shrec_16 --name ms1_smoke --niter 1 --niter_decay 0 --batch_size 2 --gpu_ids -1 --num_threads 0` | ✅ Runs; loss printed, model saved | `logs/meshcnn_smoke.log` | Restore GPU config when running full MS1; current smoke uses CPU + tiny dataset slice. |
@@ -56,9 +56,9 @@ Notes:
 - ✅ Toy giraffe smoke  
   - env: point2mesh (torch 2.3.0+cpu / torchvision 0.18.0+cpu / pytorch3d 0.7.6)  
   - cmd: `python main.py --input-pc ./data/giraffe.ply --iterations 10 --save-path ../../workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu`  
-  - duration ≈30.2 s, exit code 0 — outputs in `workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu/`; log `ms1/logs/point2mesh_smoke.log`, JSON `ms1/logs/ms1_point2mesh_smoke.jsonl`.
+- duration ≈30.2 s, exit code 0 — outputs in `workdir/COSEG/Point2Mesh/ms1_smoke_p2m_cpu/`; log `logs/point2mesh_smoke.log`, JSON `logs/ms1_point2mesh_smoke.jsonl`.
 - ⚙️ COSEG fine-tune (CPU, 160 iters)  
-  - Templates: `coseg_chair/coseg_vase/coseg_tele` in `ms1/configs/subjects.yml`.  
+- Templates: `coseg_chair/coseg_vase/coseg_tele` in `configs/subjects.yml`.  
   - Loss (min/final): chair 0.1058 / 0.1064, vase −0.1075 / −0.1055, tele 0.0191 / 0.0296.  
   - Runtime ≈520 s per entry; outputs under `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}_cpu_160/` with periodic checkpoints.
 - 🚀 COSEG fine-tune (GPU, 160 iters; env `point2mesh-gpu`)  
@@ -66,3 +66,17 @@ Notes:
   - Loss (min/final): chair 0.0178 / 0.0222, vase −0.1570 / −0.1551, tele −0.0185 / 0.0003.  
   - Runtime ≈45 s per entry; comparison plots + markdown table at `workdir/COSEG/Point2Mesh/ms1_coseg_*_cpu_gpu_compare.png` and `workdir/COSEG/Point2Mesh/gpu_cpu_summary.md`.  
   - Logs: `workdir/COSEG/Point2Mesh/ms1_coseg_{chair,vase,tele}_{cpu,gpu}_160/stdout.log`.
+
+### HodgeNet on ModelNet40 (GPU baseline)
+
+- Env: CUDA 12.1, PyTorch 2.x, RTX 4070 Ti SUPER
+- Run: `workdir/ModelNet40/HodgeNet_lite/baseline_20` (n_epochs=20, bs=16, num_workers=0, pin_memory=True)
+- Result: best_acc ≈ 0.25, final_loss ≈ 1.83, duration ≈ 802 s
+- Robustness: eigensolver singular fallback 已启用（ARPACK warn 时转零填充并记录）
+- Artifacts:
+  - Curves: `workdir/ModelNet40/HodgeNet_lite/baseline_20/acc_loss_curve.png`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/train_val_curve.png`
+  - Checkpoints: `workdir/ModelNet40/HodgeNet_lite/baseline_20/best.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/last.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/4.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/9.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/14.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/19.pth`
+  - Logs: `logs/hodgenet_baseline20_result.json`, `logs/hodgenet_probe_timing.json`, `logs/hodgenet_perf_pinmem.json`, `logs/hodgenet_eigenflow_report.json`
+- Notes:
+  - WSL 下保持 num_workers=0 最稳；pin_memory=True 可提速；
+  - 训练首批 ~3 s、后续 ~2 s；无 CUDA 句柄错误、无 OOM。
