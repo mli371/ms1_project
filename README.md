@@ -1,7 +1,7 @@
 MS1 — Run 8 Subjects with Baseline Generators
 
 ## Overview
-- Orchestrates subject × tool × seed runs with strict budgets via `ms1.scripts.ms1_runner`.
+- Orchestrates subject × tool × seed runs with strict budgets via `scripts.ms1.ms1_runner`.
 - Currently prioritises Point2Mesh COSEG baselines (CPU + GPU) and HodgeNet ModelNet40-lite GPU runs while keeping other subjects smoke-test ready.
 - Emits JSONL per-run records plus aggregated CSV/Markdown for downstream analysis.
 
@@ -15,14 +15,14 @@ MS1 — Run 8 Subjects with Baseline Generators
    - HodgeNet GPU: `conda env create -f subjects_src/HodgeNet/envs/hodgenet-gpu.lock.yml` (PyTorch 1.9 + CUDA 11.1 toolchain).
 3. **Launch a smoke run** (from repo root):
    ```bash
-   MS_ROOT=$(pwd) python -m ms1.scripts.ms1_runner \
-     --subjects ms1/configs/subjects.yml \
-     --datasets ms1/configs/datasets.yml \
-     --policy   ms1/configs/ms1_policy.yml \
+   MS_ROOT=$(pwd) python -m scripts.ms1.ms1_runner \
+     --subjects configs/subjects.yml \
+     --datasets configs/datasets.yml \
+     --policy   configs/ms1_policy.yml \
      --topic point2mesh --max-prompts 1 \
      --out ms1/logs/ms1_point2mesh_smoke.jsonl
    ```
-   *(Alternatives: `python ms1/scripts/ms1_runner.py ...` or `python tools/run_ms1.py --topic point2mesh --max-prompts 1`.)*
+   *(Alternatives: `python -m scripts.ms1.ms1_runner ...` or `python tools/run_ms1.py --topic point2mesh --max-prompts 1`.)*
 
 ## Documentation & Artifacts
 - `docs/point2mesh_report.md` – detailed Point2Mesh CPU/GPU baseline report.  
