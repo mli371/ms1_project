@@ -1,0 +1,13 @@
+{
+  "status": "success",
+  "return_code": 0,
+  "duration_sec": 802.0969905853271,
+  "batch_size": 16,
+  "pin_memory": true,
+  "num_workers": 0,
+  "n_epochs": 20,
+  "best_acc": 0.25,
+  "final_loss": 1.8331341743469238,
+  "gpu_name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+  "oom_events": []
+}

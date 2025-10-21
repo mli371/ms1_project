@@ -1,0 +1,15 @@
+{
+  "timestamps": {
+    "t_probe_A": 1761081925.075138,
+    "t_probe_B": 1761081925.0787344,
+    "t_probe_C": 1761081927.8730123,
+    "t_first_batch_before_move": 1761081927.9328995,
+    "t_first_batch_after_move": 1761081927.936402
+  },
+  "durations": {
+    "probe_A_to_B": 0.0035963058471679688,
+    "probe_B_to_C": 2.7942779064178467,
+    "probe_C_to_first_batch_before_move": 0.05988717079162598,
+    "first_batch_before_to_after_move": 0.0035026073455810547
+  }
+}
