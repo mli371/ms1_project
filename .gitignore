@@ -22,3 +22,6 @@ loss_summary.txt
 *.bak
 __pycache__/
 *.pyc
+
+code/
+*
