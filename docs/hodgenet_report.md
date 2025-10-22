@@ -55,6 +55,13 @@
 - Runtime log: `.../stdout.log`
 - Telemetry: `logs/hodgenet_probe_timing.json`, `logs/hodgenet_perf_pinmem.json`, `logs/hodgenet_eigenflow_report.json`
 
+## 8. Automation Hooks (Inference + Seed Replay)
+- **Single-mesh inference script**: `python scripts/hodgenet_infer.py --input <mesh.obj> --data-root data/datasets/ModelNet40_lite600 --model workdir/ModelNet40/HodgeNet_lite/baseline_20/best.pth` (run inside `conda run -n HodgeNet ...`). Returns JSON with predicted class, probability vector, and device. Script adds repo paths automatically.
+- **AFL wrapper integration**: `scripts/afl_wrapper.py` now includes a HodgeNet template (`python scripts/hodgenet_infer.py --input {input} --data-root ...`). When seed-dir mode is used, the wrapper falls back to `hodgenet_infer` rather than a no-op mesh check.
+- **Seed pools**: store curated meshes (e.g., copied from `data/datasets/ModelNet40_lite600/train/<class>/`) in `data/seeds/hodgenetSeeds/`. A generator is not yet automated; seeds may be created via dataset sampling or the random mesh utility if a feature extractor becomes available.
+- **Replay via runner**: `python -m scripts.ms1_runner --seed-dir data/seeds/hodgenetSeeds --subject HodgeNet --parallel 1 --out-csv workdir/hodgenet_seed_results.csv` (`conda run -n HodgeNet ...`). Performs validation (`tools/mesh_validate.py`) and inference for each seed; outputs per-mesh CSV rows with exit code, duration, predictions, and geometry stats. Logs appended to `logs/runner.log`.
+- **Batch orchestrator**: `python scripts/run_baselines.py --subjects HodgeNet --skip-generate --out-dir workdir/baseline_runs` runs the seed replay pipeline and prints JSON summary. Script also supports Point2Mesh (auto seed generation) and has placeholders for future subjects.
+
 ## 8. Observations
 1. **Stability** – No CUDA handle errors after enforcing spawn start method and CPU shared buffers. ARPACK warnings remain but are safely handled by the fallback.
 2. **Performance** – With `pin_memory=True`, first training batch ≈3.2 s, subsequent batches ≈2.2 s; validation batches ≈8.5 s due to eigensolver overhead.
@@ -65,7 +72,7 @@
 1. **Hyper-parameter sweeps** – Explore learning-rate decay, weight decay, or increased eigenvector counts to push accuracy beyond 0.25.
 2. **Validation cadence** – Increase `val_every` for longer runs to monitor drift and catch potential degeneracy earlier.
 3. **ARPACK investigations** – Analyse singular-matrix cases (recorded in eigenflow report) to identify problematic meshes; consider preconditioning or alternative eigensolvers.
-4. **Runner integration** – Wire HodgeNet baselines into the MS1 runner once dataset preprocessing is automated for the full ModelNet40 split.
+4. **Seed generation automation** – Implement an offline mesh-to-feature converter so random meshes (e.g., from `random_mesh.py`) can be consumed by HodgeNet without relying on preprocessed dataset samples.
 
 ## 10. Quick Reference
 - **Command (20e)**:

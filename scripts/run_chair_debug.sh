@@ -5,7 +5,7 @@ cp entry_template.coseg_demo entry_template.coseg_demo.bak || true
 python3 scripts/normalize_ply.py subjects_src/point2mesh/data/coseg_demo/chair_001.ply workdir/COSEG/Point2Mesh/chair_001_norm.ply
 MS_ROOT=$(pwd)
 OUT=logs/chair_debug.$(date +%Y%m%d_%H%M).jsonl
-PYTHONPATH=${MS_ROOT} python -m scripts.ms1.ms1_runner --topic point2mesh --max-prompts 1 --out ${OUT}
+PYTHONPATH=${MS_ROOT} python -m scripts.ms1_runner --topic point2mesh --max-prompts 1 --out ${OUT}
 echo "Log written to ${OUT}"
 python3 - <<'PY'
 # 简短解析输出最后几行（复用 A 的逻辑简化版）
