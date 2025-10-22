@@ -30,7 +30,7 @@ Notes:
 - SpiderCNN disabled; requires TF1.3 + CUDA 8 + Python 2.7 and `modelnet40_ply_hdf5_2048` under `ModelNet40`.
 
 ## Smoke Test Results
-> Recommended entry: `MS_ROOT=$(pwd) python -m scripts.ms1.ms1_runner ...` (see README). Script-style invocation now emits a warning but still works.
+> Recommended entry: `MS_ROOT=$(pwd) python -m scripts.ms1_runner ...` (see README). Script-style invocation now emits a warning but still works.
 | Subject | Command (condensed) | Result | Log | Next Action |
 |---|---|---|---|---|
 | MeshCNN | `python train.py --dataroot datasets/shrec_16 --name ms1_smoke --niter 1 --niter_decay 0 --batch_size 2 --gpu_ids -1 --num_threads 0` | ✅ Runs; loss printed, model saved | `logs/meshcnn_smoke.log` | Restore GPU config when running full MS1; current smoke uses CPU + tiny dataset slice. |
@@ -51,6 +51,10 @@ Notes:
 - DeepGCNs: install `torch_cluster` (matching PyTorch/CUDA) and confirm ModelNet40 pre-processing.
 - SpiderCNN: provision TF1.3/CUDA8 environment or container when ready.
 - Automate dataset path placeholder replacement in `SubjectRunner` to cover multi-dataset references beyond the active dataset.
+- Unified automation: `python scripts/run_baselines.py --subjects Point2Mesh HodgeNet` (requires pre-populated `data/seeds/hodgenetSeeds` for HodgeNet).
+- TODO: Extend `scripts/generators/random_mesh.py` with `--neighbor-aware` to perturb a vertex neighborhood coherently and emit files like `rand_mesh_neighbor_XXXX.obj`.
+- TODO: Document how to turn generator outputs into AFL seeds and run a short `afl-fuzz` experiment.
+- TODO: Update `scripts/tests` or README with Point2Mesh/HodgeNet smoke commands and seed-import examples for quick reproduction.
 
 ### Point2Mesh baselines
 - ✅ Toy giraffe smoke  
@@ -78,5 +82,7 @@ Notes:
   - Checkpoints: `workdir/ModelNet40/HodgeNet_lite/baseline_20/best.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/last.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/4.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/9.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/14.pth`, `workdir/ModelNet40/HodgeNet_lite/baseline_20/19.pth`
   - Logs: `logs/hodgenet_baseline20_result.json`, `logs/hodgenet_probe_timing.json`, `logs/hodgenet_perf_pinmem.json`, `logs/hodgenet_eigenflow_report.json`
 - Notes:
-  - WSL 下保持 num_workers=0 最稳；pin_memory=True 可提速；
-  - 训练首批 ~3 s、后续 ~2 s；无 CUDA 句柄错误、无 OOM。
+  - On WSL keep `num_workers=0`; `pin_memory=True` improves throughput.
+  - First training batch ~3 s, subsequent batches ~2 s; no CUDA handle errors or OOMs observed.
+  - Inference script: `python scripts/hodgenet_infer.py --input <mesh> --data-root data/datasets/ModelNet40_lite600` (loads `baseline_20/best.pth`).
+  - Seed replay: `python -m scripts.ms1_runner --seed-dir data/seeds/hodgenetSeeds --subject HodgeNet --parallel 1 --out-csv workdir/hodgenet_seed_results.csv`.

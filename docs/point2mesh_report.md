@@ -71,6 +71,12 @@ Runs use identical commands with `--gpu 0` inside `point2mesh-gpu` (CUDA 12.1).
 - Comparison plots and markdown summary: `workdir/COSEG/Point2Mesh/ms1_coseg_*_cpu_gpu_compare.png` and `workdir/COSEG/Point2Mesh/gpu_cpu_summary.md`.
 - GPU runs reuse CPU-generated visual pipelines. Additional GPU renders can be produced by re-running the matplotlib scripts under `point2mesh-gpu` (Open3D is GPU-safe for current usage).
 
+## 8. Automation Hooks (MS1 Runner Integration)
+- **Seed generation**: `python scripts/generators/random_mesh.py --count N --seed 123 --min_verts 150 --max_verts 350 --out-dir data/seeds/point2meshSeeds` (requires `point2mesh-gpu` env). Produces OBJ + JSON metadata.
+- **Validation**: `python tools/mesh_validate.py path/to/mesh.obj --repair-out repaired.obj` – same logic invoked automatically during seed-dir runs.
+- **Seed replay**: `python -m scripts.ms1_runner --seed-dir data/seeds/point2meshSeeds --subject Point2Mesh --parallel 2 --out-csv workdir/baseline_runs/point2mesh.csv` (pref. `conda run -n point2mesh-gpu`). Generates CSV summary of valid/failed seeds.
+- **Batch orchestrator**: `python scripts/run_baselines.py --subjects Point2Mesh` wraps steps above; `--skip-generate` skips regeneration if seeds already exist.
+
 ## 8. Documentation & Runner Updates
 - `configs/subjects.yml` COSEG templates now call `python main.py --gpu 0 ...` so the MS1 runner executes on CUDA by default.
 - `docs/ms1_status.md` reflects the new GPU baselines (min/final losses, runtime expectations) and tracks future expansion tasks.

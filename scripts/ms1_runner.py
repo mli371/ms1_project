@@ -7,11 +7,16 @@ import json
 import logging
 import os
 import socket
+import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml
+try:
+    import yaml
+except ImportError:  # pragma: no cover - seed-dir mode may not need yaml
+    yaml = None
 
 try:
     from .subject_api import SubjectRunner
@@ -20,14 +25,14 @@ try:
     from .generators import random_graph as gen_rgraph
     from .generators import random_mesh as gen_rmesh
 except Exception:  # pragma: no cover - fallback for direct script execution
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     if repo_root not in sys.path:
         sys.path.insert(0, repo_root)
-    from scripts.ms1.subject_api import SubjectRunner
-    from scripts.ms1.generators import random_testing as gen_random
-    from scripts.ms1.generators import afl_wrapper as gen_afl
-    from scripts.ms1.generators import random_graph as gen_rgraph
-    from scripts.ms1.generators import random_mesh as gen_rmesh
+    from scripts.subject_api import SubjectRunner
+    from scripts.generators import random_testing as gen_random
+    from scripts.generators import afl_wrapper as gen_afl
+    from scripts.generators import random_graph as gen_rgraph
+    from scripts.generators import random_mesh as gen_rmesh
     print("[ms1_runner] WARN: injected repo root to PYTHONPATH for direct-script run", file=sys.stderr)
 
 
@@ -194,6 +199,141 @@ def aggregate_to_csv(jsonl_path: str, csv_out: str, md_out: str):
                 f"{g['valid_count']/gen_total:.3f} | {g['invalid_count']/gen_total:.3f} | {g['crash_count']} | "
                 f"{(g['execution_time_sec_sum']/max(1, g['records'])):.2f} |\n"
             )
+
+
+def _parse_first_json_line(text: str) -> Dict[str, Any]:
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    return {}
+
+
+def run_seed_dir_mode(args) -> None:
+    seed_dir = Path(args.seed_dir).expanduser()
+    if not seed_dir.exists():
+        raise SystemExit(f"Seed directory not found: {seed_dir}")
+
+    mesh_patterns = ["*.obj", "*.ply", "*.stl"]
+    files: List[Path] = []
+    for pattern in mesh_patterns:
+        files.extend(sorted(seed_dir.glob(pattern)))
+    files = sorted(set(files))
+    if not files:
+        print(f"No mesh files found in {seed_dir}")
+        return
+
+    repo_root = Path(os.getcwd())
+    logs_dir = repo_root / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[
+            logging.FileHandler(logs_dir / "runner.log", mode="a"),
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+
+    subject = args.subject or "Point2Mesh"
+    out_csv = Path(args.out_csv or "workdir/ms1_results.csv")
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    mesh_validate = repo_root / "tools" / "mesh_validate.py"
+    afl_wrapper = repo_root / "scripts" / "afl_wrapper.py"
+
+    header = [
+        "subject",
+        "file",
+        "valid",
+        "exit_code",
+        "duration_s",
+        "output_sig",
+        "n_verts",
+        "n_faces",
+        "timestamp",
+    ]
+
+    rows: List[Dict[str, Any]] = []
+
+    def process(path: Path) -> Dict[str, Any]:
+        validation_cmd = [sys.executable, str(mesh_validate), str(path)]
+        val_proc = subprocess.run(validation_cmd, capture_output=True, text=True)
+        val_info = _parse_first_json_line(val_proc.stdout)
+        if not val_info:
+            val_info = {
+                "valid": val_proc.returncode == 0,
+                "n_verts": 0,
+                "n_faces": 0,
+            }
+        valid = bool(val_info.get("valid", val_proc.returncode == 0))
+        n_verts = int(val_info.get("n_verts", 0))
+        n_faces = int(val_info.get("n_faces", 0))
+
+        wrapper_cmd = [sys.executable, str(afl_wrapper), subject, str(path)]
+        wrapper_start = time.perf_counter()
+        try:
+            wrapper_proc = subprocess.run(wrapper_cmd, capture_output=True, text=True)
+            wrapper_stdout = wrapper_proc.stdout
+            wrapper_info = _parse_first_json_line(wrapper_stdout)
+            exit_code = wrapper_proc.returncode
+            duration = float(wrapper_info.get("duration_s", time.perf_counter() - wrapper_start))
+        except Exception as exc:
+            wrapper_stdout = str(exc)
+            exit_code = 1
+            duration = time.perf_counter() - wrapper_start
+            wrapper_info = {}
+
+        output_sig = hashlib.sha256(wrapper_stdout.encode("utf-8")).hexdigest()
+        timestamp = dt.datetime.utcnow().isoformat() + "Z"
+
+        row = {
+            "subject": subject,
+            "file": str(path),
+            "valid": bool(valid),
+            "exit_code": int(exit_code),
+            "duration_s": float(duration),
+            "output_sig": output_sig,
+            "n_verts": n_verts,
+            "n_faces": n_faces,
+            "timestamp": timestamp,
+        }
+        logging.info("Processed %s valid=%s exit=%s duration=%.3fs", path.name, valid, exit_code, duration)
+        print(
+            f"{path.name}: valid={valid} exit={exit_code} duration={duration:.3f}s",
+            flush=True,
+        )
+        return row
+
+    workers = max(1, int(args.parallel or 1))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {executor.submit(process, path): path for path in files}
+        for future in concurrent.futures.as_completed(futures):
+            rows.append(future.result())
+
+    rows.sort(key=lambda r: r["file"])
+
+    write_header = not out_csv.exists()
+    with out_csv.open("a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=header)
+        if write_header:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+    total = len(rows)
+    valid_total = sum(1 for r in rows if r["valid"])
+    failed_total = sum(1 for r in rows if (not r["valid"]) or r["exit_code"] != 0)
+    summary = {
+        "total": total,
+        "valid": valid_total,
+        "failed": failed_total,
+        "out_csv": str(out_csv),
+    }
+    logging.info("Seed-dir run summary: %s", summary)
+    print(f"Summary: {summary}")
 
 
 def select_dataset(subject: Dict, seed: Dict) -> Dict:
@@ -590,20 +730,24 @@ def run_direct_subject(
 
 def parse_args():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--subjects", required=True)
-    ap.add_argument("--datasets", required=True)
+    ap.add_argument("--subjects")
+    ap.add_argument("--datasets")
     ap.add_argument("--seeds")
-    ap.add_argument("--policy", required=True)
+    ap.add_argument("--policy")
     ap.add_argument(
         "--tools",
         help="Comma-separated: random,afl,rand_graph,rand_mesh",
     )
-    ap.add_argument("--out", required=True, help="JSONL output path")
+    ap.add_argument("--out", help="JSONL output path")
     ap.add_argument("--aggregate", help="CSV output path for aggregation")
     ap.add_argument("--time-override", type=int, help="Override time_budget_sec for smoke tests")
     ap.add_argument("--resume", action="store_true", help="Skip completed tuples found in JSONL")
     ap.add_argument("--topic", help="Run a direct subject command by name")
     ap.add_argument("--max-prompts", type=int, help="Limit number of dataset entries to execute")
+    ap.add_argument("--seed-dir", help="Directory of seed meshes to replay")
+    ap.add_argument("--subject", help="Subject name for seed-dir runs")
+    ap.add_argument("--out-csv", default="workdir/ms1_results.csv", help="CSV output for seed-dir runs")
+    ap.add_argument("--parallel", type=int, default=1, help="Parallel workers for seed-dir runs")
     return ap.parse_args()
 
 
@@ -614,6 +758,18 @@ def main():
         os.chdir(repo)
     else:
         raise RuntimeError("Cannot locate repo root (configs/ not found)")
+
+    if args.seed_dir:
+        run_seed_dir_mode(args)
+        return
+
+    required = ["subjects", "datasets", "policy", "out"]
+    missing = [opt for opt in required if getattr(args, opt) is None]
+    if missing:
+        raise SystemExit(f"Missing required arguments for runner mode: {', '.join(missing)}")
+
+    if yaml is None:
+        raise SystemExit("PyYAML is required for full MS1 runner mode. Install pyyaml in the current environment.")
     subjects_cfg = load_yaml(args.subjects)
     datasets_cfg = load_yaml(args.datasets)
     seeds_cfg = load_yaml(args.seeds) if args.seeds else {"seeds": []}

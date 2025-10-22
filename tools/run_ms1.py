@@ -6,4 +6,4 @@ repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 env = os.environ.copy()
 env["PYTHONPATH"] = repo + os.pathsep + env.get("PYTHONPATH", "")
 env["MS_ROOT"] = repo
-subprocess.check_call([sys.executable, "-m", "scripts.ms1.ms1_runner", *sys.argv[1:]], env=env, cwd=repo)
+subprocess.check_call([sys.executable, "-m", "scripts.ms1_runner", *sys.argv[1:]], env=env, cwd=repo)
