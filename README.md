@@ -36,7 +36,7 @@ MS1 — Run 8 Subjects with Baseline Generators
   - `scripts/normalize_with_normals.py` – Open3D normalization + normal estimation.  
   - `scripts/icp_align_mesh_to_pcd.py` – ICP alignment of initial meshes to point clouds (used for COSEG chair baseline).
 - **Seed & automation**:  
-  - `scripts/generators/random_mesh.py` batches OBJ generation (planned `--neighbor-aware` correlated perturbations) -> `tools/mesh_validate.py` -> `python -m scripts.ms1_runner --seed-dir ...`.  
+  - `scripts/generators/random_mesh.py` batches OBJ generation -> `tools/mesh_validate.py` -> `python -m scripts.ms1_runner --seed-dir ...`.  
   - `scripts/run_baselines.py` wraps those steps (Point2Mesh end-to-end ready; HodgeNet requires a seed set in `data/seeds/hodgenetSeeds`).
 - **Runner configuration**: `configs/subjects.yml` Point2Mesh entries invoke `python main.py --gpu 0 ...`; HodgeNet configs invoke `subjects_src/HodgeNet/train_classification.py` (auto-selects CUDA when available).
 

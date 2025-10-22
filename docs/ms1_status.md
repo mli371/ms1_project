@@ -4,14 +4,14 @@
 | Dataset | Path | Exists |
 |---|---|---|
 | FAUST | `data/datasets/MPI-FAUST` | OK |
-| ShapeNet | `data/datasets/shapenetcore_partanno_segmentation_benchmark_v0_normal` | OK |
+| ShapeNet | `data/datasets/ShapeNetCore` | MISSING |
 | ModelNet40 | `data/datasets/ModelNet40` | OK |
 | ModelNet10 | `data/datasets/ModelNet10` | OK |
 | COSEG | `data/datasets/CoSeg` | OK |
 | SMAL | `data/datasets/smal_online_V1.0` | OK |
 | Human3.6M | `data/datasets/Human3.6M` | MISSING |
 
-> TODO: Human3.6M dataset still absent; GEM remains disabled until the licensed data is available.
+> TODO: Human3.6M and ShapeNetCore dataset still absent; download requests are pending license approval. GEM, MeshCNN and MeshSDF remain disabled until the licensed data is available.
 
 ## Subjects Configuration Snapshot
 | Subject | Enabled | Env | Dataset Keys | Entry Templates |
@@ -52,7 +52,6 @@ Notes:
 - SpiderCNN: provision TF1.3/CUDA8 environment or container when ready.
 - Automate dataset path placeholder replacement in `SubjectRunner` to cover multi-dataset references beyond the active dataset.
 - Unified automation: `python scripts/run_baselines.py --subjects Point2Mesh HodgeNet` (requires pre-populated `data/seeds/hodgenetSeeds` for HodgeNet).
-- TODO: Extend `scripts/generators/random_mesh.py` with `--neighbor-aware` to perturb a vertex neighborhood coherently and emit files like `rand_mesh_neighbor_XXXX.obj`.
 - TODO: Document how to turn generator outputs into AFL seeds and run a short `afl-fuzz` experiment.
 - TODO: Update `scripts/tests` or README with Point2Mesh/HodgeNet smoke commands and seed-import examples for quick reproduction.
 
