@@ -1,8 +1,8 @@
 MS1 — Run 8 Subjects with Baseline Generators
 
 ## Overview
-- Orchestrates subject × tool × seed runs with strict budgets via `scripts.ms1.ms1_runner`.
-- Currently prioritises Point2Mesh COSEG baselines (CPU + GPU) and HodgeNet ModelNet40-lite GPU runs while keeping other subjects smoke-test ready.
+- Orchestrates subject × tool × seed runs with strict budgets via `scripts.ms1_runner`.
+- Currently prioritises Point2Mesh COSEG baselines (CPU + GPU) and HodgeNet ModelNet40-lite GPU runs while keeping other subjects smoke-test ready. Baseline automation is now available via `scripts/run_baselines.py` (seed generation + validation + replay).
 - Emits JSONL per-run records plus aggregated CSV/Markdown for downstream analysis.
 
 ## Quick Start
@@ -15,18 +15,18 @@ MS1 — Run 8 Subjects with Baseline Generators
    - HodgeNet GPU: `conda env create -f subjects_src/HodgeNet/envs/hodgenet-gpu.lock.yml` (PyTorch 1.9 + CUDA 11.1 toolchain).
 3. **Launch a smoke run** (from repo root):
    ```bash
-   MS_ROOT=$(pwd) python -m scripts.ms1.ms1_runner \
+   MS_ROOT=$(pwd) python -m scripts.ms1_runner \
      --subjects configs/subjects.yml \
      --datasets configs/datasets.yml \
      --policy   configs/ms1_policy.yml \
      --topic point2mesh --max-prompts 1 \
      --out ms1/logs/ms1_point2mesh_smoke.jsonl
    ```
-   *(Alternatives: `python -m scripts.ms1.ms1_runner ...` or `python tools/run_ms1.py --topic point2mesh --max-prompts 1`.)*
+   *(Alternatives: `python -m scripts.ms1_runner ...` or `python tools/run_ms1.py --topic point2mesh --max-prompts 1`.)*
 
 ## Documentation & Artifacts
 - `docs/point2mesh_report.md` – detailed Point2Mesh CPU/GPU baseline report.  
-- `docs/hodgenet_report.md` – HodgeNet ModelNet40-lite GPU baseline report.  
+- `docs/hodgenet_report.md` – HodgeNet ModelNet40-lite GPU baseline report (now documents single-mesh inference and seed-dir replay).  
 - `docs/point2mesh_file_structure.md` – reference map for Point2Mesh scripts, workdir outputs, and logs.  
 - `docs/ms1_status.md` – project-wide status dashboard with latest loss numbers (Point2Mesh + HodgeNet).  
 - Comparison plots live in `workdir/COSEG/Point2Mesh/ms1_coseg_*_cpu_gpu_compare.png`; summary table at `workdir/COSEG/Point2Mesh/gpu_cpu_summary.md`.
@@ -35,10 +35,13 @@ MS1 — Run 8 Subjects with Baseline Generators
 - **Preprocessing**:  
   - `scripts/normalize_with_normals.py` – Open3D normalization + normal estimation.  
   - `scripts/icp_align_mesh_to_pcd.py` – ICP alignment of initial meshes to point clouds (used for COSEG chair baseline).
+- **Seed & automation**:  
+  - `scripts/generators/random_mesh.py` batches OBJ generation (planned `--neighbor-aware` correlated perturbations) -> `tools/mesh_validate.py` -> `python -m scripts.ms1_runner --seed-dir ...`.  
+  - `scripts/run_baselines.py` wraps those steps (Point2Mesh end-to-end ready; HodgeNet requires a seed set in `data/seeds/hodgenetSeeds`).
 - **Runner configuration**: `configs/subjects.yml` Point2Mesh entries invoke `python main.py --gpu 0 ...`; HodgeNet configs invoke `subjects_src/HodgeNet/train_classification.py` (auto-selects CUDA when available).
 
 ## Notes
 - Subject entry templates accept placeholders (`{mesh}`, `{weights}`, `{data_root}`, `{device}`); dataset blocks can override defaults.  
-- AFL wrapper still simulates if `afl-fuzz` is missing.  
+- AFL wrapper (`scripts/afl_wrapper.py`) currently supports Point2Mesh and HodgeNet; documentation will include a short AFL seed demo.  
 - GPU resources are optional for most subjects, but Point2Mesh COSEG and HodgeNet baselines now leverage CUDA for faster convergence.  
 - WSL hosts: keep `num_workers=0` for HodgeNet eigencalc stability; `pin_memory=True` offers measurable throughput gains.
