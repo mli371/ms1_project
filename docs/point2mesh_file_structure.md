@@ -69,4 +69,3 @@ python scripts/icp_align_mesh_to_pcd.py \
   workdir/COSEG/Point2Mesh/coseg_ply/chairs/initmesh_icp_refined_normals.obj
 ```
 
-Use this map when onboarding new contributors or when pruning/refreshing Point2Mesh assets.

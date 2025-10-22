@@ -1,4 +1,4 @@
-# Ignore datasets and large binary files
+# Datasets and other large inputs (require separate download)
 data/datasets/
 *.zip
 *.tgz
@@ -10,18 +10,19 @@ data/datasets/
 *.h5
 *.hdf5
 
+# Generated seeds (can be reconstructed); keep optional docs with README
+data/seeds/
+!data/seeds/README.md
+
+# Experiment outputs
+workdir/
+logs/
+
+# Misc artifacts
 __MACOSX/
 .DS_Store
-
-!data/datasets/COSEG/README.md
-workdir/**
-ms1/workdir/**
-ms1/logs/**
-logs/**
 loss_summary.txt
 *.bak
 __pycache__/
 *.pyc
-
-code/
-*
+entry_template.coseg_demo
